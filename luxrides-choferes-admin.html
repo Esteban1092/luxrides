@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LuxRides — Admin de Choferes</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Outfit:wght@300;400;500;600;700&display=swap"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --gold:#D4AF37;--gold-hover:#F3E5AB;
+      --bg:#090909;--card:#151515;--card2:#1b1b1b;
+      --fg:#f4f4f4;--muted:rgba(255,255,255,0.55);
+      --border:rgba(255,255,255,0.12);--green:#22c55e;--red:#ef4444;
+    }
+    body{background:var(--bg);color:var(--fg);font-family:'Outfit',sans-serif;min-height:100vh;padding:20px;}
+    .wrap{max-width:980px;margin:0 auto;}
+    header{text-align:center;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--gold);}
+    h1{font-family:'Playfair Display',serif;color:var(--gold);letter-spacing:.12em;font-size:1.8rem;}
+    header p{color:var(--muted);font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;margin-top:4px;}
+
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:16px;}
+    @media(max-width:900px){.grid{grid-template-columns:1fr;}}
+
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;}
+    .card h2{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.1rem;margin-bottom:12px;}
+
+    .field{margin-bottom:10px;}
+    .lbl{display:block;font-size:.7rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+    input,select{
+      width:100%;background:#101010;color:var(--fg);border:1px solid var(--border);
+      padding:10px 11px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.9rem;outline:none;
+    }
+    input:focus,select:focus{border-color:var(--gold);}
+
+    .btn{width:100%;border:none;border-radius:8px;padding:11px 12px;cursor:pointer;font-weight:700;font-size:.9rem;}
+    .btn-gold{background:var(--gold);color:#050505;}
+    .btn-gold:hover{background:var(--gold-hover);}
+
+    .status{margin-top:10px;font-size:.82rem;padding:8px 10px;border-radius:7px;border:1px solid var(--border);display:none;}
+    .status.ok{display:block;border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.12);color:#86efac;}
+    .status.err{display:block;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.12);color:#fca5a5;}
+
+    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+    .small{font-size:.78rem;color:var(--muted);}
+
+    .chofer-item{background:var(--card2);border:1px solid var(--border);border-left:4px solid var(--gold);border-radius:10px;padding:12px;margin-bottom:10px;}
+    .row{display:flex;justify-content:space-between;gap:10px;align-items:center;}
+    .id{font-size:.8rem;color:var(--muted);}    
+    .name{font-size:1rem;font-weight:600;}
+    .meta{font-size:.82rem;color:var(--muted);margin-top:4px;}
+    .badge{font-size:.7rem;padding:4px 8px;border-radius:999px;border:1px solid var(--border);}
+    .badge.libre{color:#86efac;border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.14);}
+    .badge.ocupado{color:#fca5a5;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.14);}
+    .badge.off{color:#d1d5db;border-color:rgba(156,163,175,.5);background:rgba(156,163,175,.14);}
+
+    .item-actions{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;}
+    .btn-mini{border:1px solid var(--border);background:#121212;color:#f3f4f6;border-radius:6px;padding:6px 10px;font-size:.78rem;cursor:pointer;}
+    .btn-mini:hover{border-color:var(--gold);color:var(--gold);}
+
+    .empty{text-align:center;padding:30px 10px;color:var(--muted);}    
+    #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(30px);background:#1d1d1d;color:var(--gold);border:1px solid var(--gold);padding:11px 18px;border-radius:8px;opacity:0;transition:all .25s;pointer-events:none;z-index:999;}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+    #toast.err{color:#fca5a5;border-color:var(--red);}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>🚕 ADMIN DE CHOFERES</h1>
+      <p>Alta de IDs y hotel de base</p>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2>➕ Agregar chofer</h2>
+        <div class="field">
+          <label class="lbl">ID del chofer</label>
+          <input id="inp-id" type="text" placeholder="Ej: 004"/>
+        </div>
+        <div class="field">
+          <label class="lbl">Nombre</label>
+          <input id="inp-nombre" type="text" placeholder="Ej: Juan Pérez"/>
+        </div>
+        <div class="field">
+          <label class="lbl">Hotel base</label>
+          <input id="inp-hotel" type="text" placeholder="Ej: Four Seasons Reforma"/>
+        </div>
+        <div class="field">
+          <label class="lbl">Estado inicial</label>
+          <select id="inp-estado">
+            <option value="Libre">Libre</option>
+            <option value="Ocupado">Ocupado</option>
+            <option value="Desconectado">Desconectado</option>
+          </select>
+        </div>
+        <button class="btn btn-gold" onclick="guardarChofer()">GUARDAR CHOFER</button>
+        <div id="msg" class="status"></div>
+      </section>
+
+      <section class="card">
+        <div class="toolbar">
+          <h2>📋 Choferes registrados</h2>
+          <button class="btn-mini" onclick="cargarChoferes()">Refrescar</button>
+        </div>
+        <p class="small">Tip: también puedes editar el hotel desde el panel de despacho.</p>
+        <div id="lista-choferes" style="margin-top:10px;">
+          <div class="empty">Cargando choferes…</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDlzuMEutA5yDZLpRG62WEuxBQmi6y_tq0",
+      authDomain: "luxridesreservas-d5102.firebaseapp.com",
+      databaseURL: "https://luxridesreservas-d5102-default-rtdb.firebaseio.com",
+      projectId: "luxridesreservas-d5102",
+      storageBucket: "luxridesreservas-d5102.firebasestorage.app",
+      messagingSenderId: "731425344327",
+      appId: "1:731425344327:web:3ef04d1320750cd6e6da62",
+      measurementId: "G-WM9QYXYKTX"
+    };
+
+    const loadScript = (src) => new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = res;
+      s.onerror = () => rej(new Error('No se pudo cargar: ' + src));
+      document.head.appendChild(s);
+    });
+
+    let db = null;
+
+    (async () => {
+      try {
+        await loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
+        await loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js");
+        if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.database();
+        cargarChoferes();
+      } catch (err) {
+        console.error(err);
+        setMsg('Error conectando con Firebase: ' + err.message, true);
+      }
+    })();
+
+    function normalizeChoferId(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      return /^\d+$/.test(raw) ? raw.padStart(3, '0') : raw.toUpperCase();
+    }
+
+    async function getRelatedChoferIds(id) {
+      const canonicalId = normalizeChoferId(id);
+      const ids = new Set([canonicalId]);
+      const snap = await db.ref('choferes').once('value');
+
+      snap.forEach(child => {
+        const rawId = String(child.key || '').trim();
+        const data = child.val() || {};
+        const childCanonical = normalizeChoferId(rawId);
+        const idCanonico = normalizeChoferId(data.id_canonico || '');
+        const idLegado = normalizeChoferId(data.id_legado || '');
+
+        if (childCanonical === canonicalId || idCanonico === canonicalId || idLegado === canonicalId) {
+          ids.add(rawId);
+          ids.add(childCanonical);
+        }
+      });
+
+      return Array.from(ids).filter(Boolean);
+    }
+
+    async function guardarChofer() {
+      if (!db) return setMsg('Firebase no inicializado.', true);
+
+      const id = normalizeChoferId(document.getElementById('inp-id').value);
+      const nombre = document.getElementById('inp-nombre').value.trim();
+      const hotel = document.getElementById('inp-hotel').value.trim();
+      const estado = document.getElementById('inp-estado').value;
+
+      if (!id || !nombre) {
+        return setMsg('ID y nombre son obligatorios.', true);
+      }
+
+      try {
+        const ref = db.ref('choferes/' + id);
+        const oldSnap = await ref.once('value');
+        const oldData = oldSnap.val() || {};
+
+        await ref.update({
+          nombre,
+          hotel,
+          estado,
+          actualizado_en: new Date().toISOString(),
+          creado_en: oldData.creado_en || new Date().toISOString()
+        });
+
+        setMsg('Chofer guardado correctamente.');
+        showToast('✅ Chofer ' + id + ' guardado');
+        document.getElementById('inp-id').value = '';
+        document.getElementById('inp-nombre').value = '';
+        document.getElementById('inp-hotel').value = '';
+        document.getElementById('inp-estado').value = 'Libre';
+        cargarChoferes();
+      } catch (err) {
+        console.error(err);
+        setMsg('No se pudo guardar: ' + err.message, true);
+      }
+    }
+
+    async function cargarChoferes() {
+      const div = document.getElementById('lista-choferes');
+      if (!db) {
+        div.innerHTML = '<div class="empty">Esperando conexión…</div>';
+        return;
+      }
+
+      try {
+        const snap = await db.ref('choferes').once('value');
+        div.innerHTML = '';
+        let count = 0;
+
+        snap.forEach(child => {
+          count++;
+          const id = child.key;
+          const ch = child.val() || {};
+          const estado = ch.estado || 'Desconectado';
+          const badgeClass = estado.toLowerCase().includes('libre') ? 'libre'
+                            : estado.toLowerCase().includes('ocupado') ? 'ocupado'
+                            : 'off';
+
+          div.innerHTML += `
+            <div class="chofer-item">
+              <div class="row">
+                <div>
+                  <div class="name">${escHtml(ch.nombre || id)}</div>
+                  <div class="id">ID: ${escHtml(id)}</div>
+                </div>
+                <span class="badge ${badgeClass}">${escHtml(estado)}</span>
+              </div>
+              <div class="meta">🏨 Hotel: <b>${escHtml(ch.hotel || 'Sin asignar')}</b></div>
+              <div class="item-actions">
+                <button class="btn-mini" onclick="editarNombre('${id}', '${escapeForJs(ch.nombre || '')}')">Editar nombre</button>
+                <button class="btn-mini" onclick="editarHotel('${id}', '${escapeForJs(ch.hotel || '')}')">Editar hotel</button>
+                <button class="btn-mini" onclick="eliminarChofer('${id}')">Borrar chofer</button>
+              </div>
+            </div>`;
+        });
+
+        if (count === 0) {
+          div.innerHTML = '<div class="empty">Aún no hay choferes.</div>';
+        }
+      } catch (err) {
+        console.error(err);
+        div.innerHTML = '<div class="empty">Error al leer choferes.</div>';
+      }
+    }
+
+    async function editarHotel(id, hotelActual) {
+      const nuevo = window.prompt('Hotel para chofer ' + id + ':', hotelActual || '');
+      if (nuevo === null) return;
+      const hotel = nuevo.trim();
+      if (!hotel) return showToast('Escribe un hotel válido.', true);
+
+      try {
+        await db.ref('choferes/' + id).update({
+          hotel,
+          hotel_actualizado_en: new Date().toISOString()
+        });
+        showToast('🏨 Hotel actualizado para ' + id);
+        cargarChoferes();
+      } catch (err) {
+        console.error(err);
+        showToast('Error al actualizar hotel', true);
+      }
+    }
+
+    async function editarNombre(id, nombreActual) {
+      const nuevo = window.prompt('Nombre para chofer ' + id + ':', nombreActual || '');
+      if (nuevo === null) return;
+      const nombre = nuevo.trim();
+      if (!nombre) return showToast('Escribe un nombre válido.', true);
+
+      try {
+        const idsRelacionados = await getRelatedChoferIds(id);
+        await Promise.all(idsRelacionados.map(choferId => db.ref('choferes/' + choferId).update({
+          nombre,
+          nombre_actualizado_en: new Date().toISOString()
+        })));
+        showToast('✏️ Nombre actualizado para ' + normalizeChoferId(id));
+        cargarChoferes();
+      } catch (err) {
+        console.error(err);
+        showToast('No se pudo actualizar nombre', true);
+      }
+    }
+
+    async function eliminarChofer(id) {
+      const ok = window.confirm('¿Borrar solo el chofer ' + id + '?');
+      if (!ok) return;
+      try {
+        const idsRelacionados = await getRelatedChoferIds(id);
+        await Promise.all(idsRelacionados.flatMap(choferId => [
+          db.ref('choferes/' + choferId).remove(),
+          db.ref('viajes/' + choferId).remove(),
+          db.ref('historial/' + choferId).remove()
+        ]));
+        showToast('🗑️ Chofer eliminado: ' + normalizeChoferId(id));
+        cargarChoferes();
+      } catch (err) {
+        console.error(err);
+        showToast('No se pudo eliminar', true);
+      }
+    }
+
+    function setMsg(txt, isErr = false) {
+      const el = document.getElementById('msg');
+      el.textContent = txt;
+      el.className = 'status ' + (isErr ? 'err' : 'ok');
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function escapeForJs(str) {
+      return String(str || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\n/g, ' ')
+        .replace(/\r/g, ' ');
+    }
+
+    let toastTimer = null;
+    function showToast(msg, isErr = false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = (isErr ? 'err ' : '') + 'show';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { t.className = ''; }, 3200);
+    }
+  </script>
+</body>
+</html>

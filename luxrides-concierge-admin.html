@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LuxRides — Admin de Concierges</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Outfit:wght@300;400;500;600;700&display=swap"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --gold:#D4AF37;--gold-hover:#F3E5AB;
+      --bg:#090909;--card:#151515;--card2:#1b1b1b;
+      --fg:#f4f4f4;--muted:rgba(255,255,255,0.55);
+      --border:rgba(255,255,255,0.12);--green:#22c55e;--red:#ef4444;
+    }
+    body{background:var(--bg);color:var(--fg);font-family:'Outfit',sans-serif;min-height:100vh;padding:20px;}
+    .wrap{max-width:980px;margin:0 auto;}
+    header{text-align:center;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--gold);}
+    h1{font-family:'Playfair Display',serif;color:var(--gold);letter-spacing:.12em;font-size:1.8rem;}
+    header p{color:var(--muted);font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;margin-top:4px;}
+
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:16px;}
+    @media(max-width:900px){.grid{grid-template-columns:1fr;}}
+
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;}
+    .card h2{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.1rem;margin-bottom:12px;}
+
+    .field{margin-bottom:10px;}
+    .lbl{display:block;font-size:.7rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+    input,select{
+      width:100%;background:#101010;color:var(--fg);border:1px solid var(--border);
+      padding:10px 11px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.9rem;outline:none;
+    }
+    input:focus,select:focus{border-color:var(--gold);}
+
+    .btn{width:100%;border:none;border-radius:8px;padding:11px 12px;cursor:pointer;font-weight:700;font-size:.9rem;}
+    .btn-gold{background:var(--gold);color:#050505;}
+    .btn-gold:hover{background:var(--gold-hover);}
+
+    .status{margin-top:10px;font-size:.82rem;padding:8px 10px;border-radius:7px;border:1px solid var(--border);display:none;}
+    .status.ok{display:block;border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.12);color:#86efac;}
+    .status.err{display:block;border-color:rgba(239,68,68,.5);background:rgba(239,68,68,.12);color:#fca5a5;}
+
+    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+    .small{font-size:.78rem;color:var(--muted);}
+
+    .concierge-item{background:var(--card2);border:1px solid var(--border);border-left:4px solid var(--gold);border-radius:10px;padding:12px;margin-bottom:10px;}
+    .row{display:flex;justify-content:space-between;gap:10px;align-items:center;}
+    .id{font-size:.8rem;color:var(--muted);}
+    .name{font-size:1rem;font-weight:600;}
+    .meta{font-size:.82rem;color:var(--muted);margin-top:4px;}
+    .badge{font-size:.7rem;padding:4px 8px;border-radius:999px;border:1px solid var(--border);}
+    .badge.activo{color:#86efac;border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.14);}
+    .badge.inactivo{color:#d1d5db;border-color:rgba(156,163,175,.5);background:rgba(156,163,175,.14);}
+
+    .item-actions{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap;}
+    .btn-mini{border:1px solid var(--border);background:#121212;color:#f3f4f6;border-radius:6px;padding:6px 10px;font-size:.78rem;cursor:pointer;}
+    .btn-mini:hover{border-color:var(--gold);color:var(--gold);}
+
+    .nfc-url{font-size:.75rem;color:var(--muted);margin-top:6px;word-break:break-all;font-family:monospace;background:#0a0a0a;padding:6px 8px;border-radius:6px;border:1px solid var(--border);}
+
+    .empty{text-align:center;padding:30px 10px;color:var(--muted);}
+    #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(30px);background:#1d1d1d;color:var(--gold);border:1px solid var(--gold);padding:11px 18px;border-radius:8px;opacity:0;transition:all .25s;pointer-events:none;z-index:999;}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+    #toast.err{color:#fca5a5;border-color:var(--red);}
+
+    .pass-hint{font-size:.72rem;color:var(--muted);margin-top:4px;}
+  </style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>🏨 ADMIN DE CONCIERGES</h1>
+    <p>Alta de IDs, contraseñas y hotel</p>
+  </header>
+
+  <div class="grid">
+    <!-- Formulario -->
+    <section class="card">
+      <h2>➕ Agregar Concierge</h2>
+      <div class="field">
+        <label class="lbl">ID / Código del concierge</label>
+        <input id="inp-id" type="text" placeholder="Ej: fernando" autocomplete="off"/>
+      </div>
+      <div class="field">
+        <label class="lbl">Nombre completo</label>
+        <input id="inp-nombre" type="text" placeholder="Ej: Fernando López"/>
+      </div>
+      <div class="field">
+        <label class="lbl">Hotel</label>
+        <input id="inp-hotel" type="text" placeholder="Ej: Hotel Camino Real Polanco"/>
+      </div>
+      <div class="field">
+        <label class="lbl">Contraseña</label>
+        <input id="inp-pass" type="text" placeholder="Mínimo 4 caracteres" autocomplete="off"/>
+        <div class="pass-hint">El concierge usará esta contraseña para entrar a su panel de comisiones.</div>
+      </div>
+      <div class="field">
+        <label class="lbl">Estado</label>
+        <select id="inp-estado">
+          <option value="Activo">Activo</option>
+          <option value="Inactivo">Inactivo</option>
+        </select>
+      </div>
+      <button class="btn btn-gold" onclick="guardarConcierge()">GUARDAR CONCIERGE</button>
+      <div id="msg" class="status"></div>
+    </section>
+
+    <!-- Lista -->
+    <section class="card">
+      <div class="toolbar">
+        <h2>📋 Concierges registrados</h2>
+        <button class="btn-mini" onclick="cargarConcierges()">Refrescar</button>
+      </div>
+      <p class="small">Cada concierge tiene su URL NFC y contraseña para ver comisiones.</p>
+      <div id="lista-concierges" style="margin-top:10px;">
+        <div class="empty">Cargando concierges…</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDlzuMEutA5yDZLpRG62WEuxBQmi6y_tq0",
+    authDomain: "luxridesreservas-d5102.firebaseapp.com",
+    databaseURL: "https://luxridesreservas-d5102-default-rtdb.firebaseio.com",
+    projectId: "luxridesreservas-d5102",
+    storageBucket: "luxridesreservas-d5102.firebasestorage.app",
+    messagingSenderId: "731425344327",
+    appId: "1:731425344327:web:3ef04d1320750cd6e6da62",
+    measurementId: "G-WM9QYXYKTX"
+  };
+
+  const loadScript = (src) => new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = res;
+    s.onerror = () => rej(new Error('No se pudo cargar: ' + src));
+    document.head.appendChild(s);
+  });
+
+  let db = null;
+
+  (async () => {
+    try {
+      await loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
+      await loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js");
+      if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      db = firebase.database();
+      cargarConcierges();
+    } catch (err) {
+      console.error(err);
+      setMsg('Error conectando con Firebase: ' + err.message, true);
+    }
+  })();
+
+  // ─── Guardar ───
+  async function guardarConcierge() {
+    if (!db) return setMsg('Firebase no inicializado.', true);
+
+    const id = document.getElementById('inp-id').value.trim().toLowerCase().replace(/\s+/g, '_');
+    const nombre = document.getElementById('inp-nombre').value.trim();
+    const hotel = document.getElementById('inp-hotel').value.trim();
+    const pass = document.getElementById('inp-pass').value.trim();
+    const estado = document.getElementById('inp-estado').value;
+
+    if (!id || !nombre) return setMsg('ID y nombre son obligatorios.', true);
+    if (!pass || pass.length < 4) return setMsg('La contraseña debe tener al menos 4 caracteres.', true);
+
+    try {
+      const ref = db.ref('concierges/' + id);
+      const oldSnap = await ref.once('value');
+      const oldData = oldSnap.val() || {};
+
+      await ref.update({
+        nombre,
+        hotel,
+        password: pass,
+        estado,
+        actualizado_en: new Date().toISOString(),
+        creado_en: oldData.creado_en || new Date().toISOString()
+      });
+
+      setMsg('Concierge "' + id + '" guardado correctamente.');
+      showToast('✅ Concierge ' + id + ' guardado');
+
+      // Limpiar form
+      document.getElementById('inp-id').value = '';
+      document.getElementById('inp-nombre').value = '';
+      document.getElementById('inp-hotel').value = '';
+      document.getElementById('inp-pass').value = '';
+      document.getElementById('inp-estado').value = 'Activo';
+      cargarConcierges();
+    } catch (err) {
+      console.error(err);
+      setMsg('No se pudo guardar: ' + err.message, true);
+    }
+  }
+
+  // ─── Cargar lista ───
+  async function cargarConcierges() {
+    const div = document.getElementById('lista-concierges');
+    if (!db) { div.innerHTML = '<div class="empty">Esperando conexión…</div>'; return; }
+
+    try {
+      const snap = await db.ref('concierges').once('value');
+      div.innerHTML = '';
+      let count = 0;
+
+      const baseUrl = location.origin + location.pathname.replace(/[^/]*$/, '');
+
+      snap.forEach(child => {
+        count++;
+        const id = child.key;
+        const c = child.val() || {};
+        const estado = c.estado || 'Activo';
+        const badgeClass = estado === 'Activo' ? 'activo' : 'inactivo';
+        const nfcUrl = baseUrl + 'luxrides-concierge.html?c=' + encodeURIComponent(id);
+
+        div.innerHTML += `
+          <div class="concierge-item">
+            <div class="row">
+              <div>
+                <div class="name">${escHtml(c.nombre || id)}</div>
+                <div class="id">ID: ${escHtml(id)} · Contraseña: ${escHtml(c.password || '(sin asignar)')}</div>
+              </div>
+              <span class="badge ${badgeClass}">${escHtml(estado)}</span>
+            </div>
+            <div class="meta">🏨 Hotel: <b>${escHtml(c.hotel || 'Sin asignar')}</b></div>
+            <div class="nfc-url">🔗 NFC: ${escHtml(nfcUrl)}</div>
+            <div class="item-actions">
+              <button class="btn-mini" onclick="editarNombre('${escJs(id)}', '${escJs(c.nombre || '')}')">Editar nombre</button>
+              <button class="btn-mini" onclick="editarHotel('${escJs(id)}', '${escJs(c.hotel || '')}')">Editar hotel</button>
+              <button class="btn-mini" onclick="editarPassword('${escJs(id)}')">Cambiar contraseña</button>
+              <button class="btn-mini" onclick="toggleEstado('${escJs(id)}', '${escJs(estado)}')">
+                ${estado === 'Activo' ? 'Desactivar' : 'Activar'}
+              </button>
+              <button class="btn-mini" onclick="eliminarConcierge('${escJs(id)}')">Eliminar</button>
+            </div>
+          </div>`;
+      });
+
+      if (count === 0) div.innerHTML = '<div class="empty">Aún no hay concierges.</div>';
+    } catch (err) {
+      console.error(err);
+      div.innerHTML = '<div class="empty">Error al leer concierges.</div>';
+    }
+  }
+
+  // ─── Acciones ───
+  async function editarNombre(id, actual) {
+    const nuevo = prompt('Nombre para concierge ' + id + ':', actual);
+    if (nuevo === null) return;
+    const nombre = nuevo.trim();
+    if (!nombre) return showToast('Escribe un nombre válido.', true);
+    try {
+      await db.ref('concierges/' + id).update({ nombre, actualizado_en: new Date().toISOString() });
+      showToast('✏️ Nombre actualizado');
+      cargarConcierges();
+    } catch (e) { console.error(e); showToast('Error al actualizar', true); }
+  }
+
+  async function editarHotel(id, actual) {
+    const nuevo = prompt('Hotel para concierge ' + id + ':', actual);
+    if (nuevo === null) return;
+    const hotel = nuevo.trim();
+    if (!hotel) return showToast('Escribe un hotel válido.', true);
+    try {
+      await db.ref('concierges/' + id).update({ hotel, actualizado_en: new Date().toISOString() });
+      showToast('🏨 Hotel actualizado');
+      cargarConcierges();
+    } catch (e) { console.error(e); showToast('Error al actualizar', true); }
+  }
+
+  async function editarPassword(id) {
+    const nuevo = prompt('Nueva contraseña para ' + id + ' (mínimo 4 caracteres):');
+    if (nuevo === null) return;
+    const pass = nuevo.trim();
+    if (pass.length < 4) return showToast('Mínimo 4 caracteres.', true);
+    try {
+      await db.ref('concierges/' + id).update({ password: pass, actualizado_en: new Date().toISOString() });
+      showToast('🔑 Contraseña actualizada');
+      cargarConcierges();
+    } catch (e) { console.error(e); showToast('Error al actualizar', true); }
+  }
+
+  async function toggleEstado(id, estadoActual) {
+    const nuevoEstado = estadoActual === 'Activo' ? 'Inactivo' : 'Activo';
+    try {
+      await db.ref('concierges/' + id).update({ estado: nuevoEstado, actualizado_en: new Date().toISOString() });
+      showToast(nuevoEstado === 'Activo' ? '✅ Concierge activado' : '⏸️ Concierge desactivado');
+      cargarConcierges();
+    } catch (e) { console.error(e); showToast('Error al cambiar estado', true); }
+  }
+
+  async function eliminarConcierge(id) {
+    if (!confirm('¿Eliminar al concierge "' + id + '"? Esto NO borra las reservas vinculadas.')) return;
+    try {
+      await db.ref('concierges/' + id).remove();
+      showToast('🗑️ Concierge eliminado: ' + id);
+      cargarConcierges();
+    } catch (e) { console.error(e); showToast('Error al eliminar', true); }
+  }
+
+  // ─── Utilidades ───
+  function setMsg(txt, isErr = false) {
+    const el = document.getElementById('msg');
+    el.textContent = txt;
+    el.className = 'status ' + (isErr ? 'err' : 'ok');
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function escJs(str) {
+    return String(str || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ').replace(/\r/g,' ');
+  }
+
+  let toastTimer = null;
+  function showToast(msg, isErr = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = (isErr ? 'err ' : '') + 'show';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = ''; }, 3200);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "LuxRides Choferes",
+  "short_name": "LuxChofer",
+  "description": "App de choferes LuxRides para recibir servicios en telefono.",
+  "start_url": "./choferes%20luxrides.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#d4af37",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./luxrides-driver-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

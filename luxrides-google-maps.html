@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LuxRides - Rutas y Tráfico</title>
+<style>
+  body, html { margin: 0; padding: 0; height: 100%; font-family: 'Arial', sans-serif; background: #050505; color: #ffffff; }
+  #map { width: 100%; height: 60vh; }
+  .panel { width: 100%; max-width: 1180px; margin: 0 auto; padding: 18px; box-sizing: border-box; }
+  .card { background: rgba(10,10,10,0.95); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 18px; box-shadow: 0 18px 40px rgba(0,0,0,0.25); }
+  .row { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  @media(min-width: 720px) { .row { grid-template-columns: 1fr 1fr; } }
+  label { display: block; margin-bottom: 6px; font-size: 0.82rem; color: #c0c0c0; }
+  input, select, button { width: 100%; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 12px 14px; background: rgba(255,255,255,0.04); color: #ffffff; font-size: 0.95rem; }
+  input:focus, select:focus { outline: none; border-color: #d4af37; box-shadow: 0 0 0 2px rgba(212,175,55,0.18); }
+  button { cursor: pointer; background: #d4af37; color: #050505; font-weight: 700; transition: background 0.2s ease; }
+  button:hover { background: #f3e5ab; }
+  .info { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+  .info-box { flex: 1 1 180px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px; }
+  .info-box strong { display: block; font-size: 1.05rem; margin-bottom: 6px; color: #d4af37; }
+  .info-box span { color: #b7b7b7; }
+  #directions-panel { margin-top: 18px; max-height: 260px; overflow-y: auto; padding-right: 10px; }
+  #directions-panel h2 { margin-top: 0; font-size: 1rem; color: #ffffff; }
+  .footer { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: #ffffff; }
+  .toggle.active { border-color: #d4af37; background: rgba(212,175,55,0.16); }
+  .notice { margin-top: 12px; color: #c0c0c0; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="panel">
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="origin">Origen</label>
+        <input id="origin" type="text" placeholder="Escribe tu origen" />
+      </div>
+      <div>
+        <label for="destination">Destino</label>
+        <input id="destination" type="text" placeholder="Escribe tu destino" />
+      </div>
+    </div>
+    <div class="row" style="margin-top: 14px;">
+      <div>
+        <label for="travel-mode">Modo de viaje</label>
+        <select id="travel-mode">
+          <option value="DRIVING">Conducción</option>
+          <option value="WALKING">A pie</option>
+          <option value="BICYCLING">Bicicleta</option>
+          <option value="TRANSIT">Transporte público</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="btn-route">Mostrar ruta</button>
+      </div>
+    </div>
+    <div class="footer">
+      <div id="traffic-toggle" class="toggle">Mostrar tráfico</div>
+      <button id="btn-open-google" style="flex: 1 1 240px;">Abrir en Google Maps</button>
+    </div>
+    <div class="info">
+      <div class="info-box"><strong id="route-distance">--</strong><span>Distancia</span></div>
+      <div class="info-box"><strong id="route-duration">--</strong><span>Tiempo estimado</span></div>
+      <div class="info-box"><strong id="route-status">No calculado</strong><span>Estado</span></div>
+    </div>
+    <div id="directions-panel"></div>
+    <div class="notice">Usa el cuadro de origen y destino. Si tu clave de Google Maps no funciona, reemplázala por una clave válida en la línea <code>GOOGLE_MAPS_API_KEY</code>.</div>
+  </div>
+</div>
+
+<script>
+  const GOOGLE_MAPS_API_KEY = '1078133994970';
+  let map;
+  let directionsService;
+  let directionsRenderer;
+  let trafficLayer;
+  let autocompleteOrigin;
+  let autocompleteDestination;
+  let currentRouteUrl = '';
+
+  function initMap() {
+    map = new google.maps.Map(document.getElementById('map'), {
+      center: { lat: 19.432608, lng: -99.133209 },
+      zoom: 12,
+      mapTypeControl: false,
+      fullscreenControl: false,
+      streetViewControl: false,
+      zoomControl: true,
+    });
+
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({ map, panel: document.getElementById('directions-panel') });
+    trafficLayer = new google.maps.TrafficLayer();
+
+    const originInput = document.getElementById('origin');
+    const destinationInput = document.getElementById('destination');
+
+    autocompleteOrigin = new google.maps.places.Autocomplete(originInput, { fields: ['geometry', 'formatted_address'] });
+    autocompleteDestination = new google.maps.places.Autocomplete(destinationInput, { fields: ['geometry', 'formatted_address'] });
+
+    document.getElementById('btn-route').addEventListener('click', calcularRuta);
+    document.getElementById('traffic-toggle').addEventListener('click', toggleTraffic);
+    document.getElementById('btn-open-google').addEventListener('click', abrirEnGoogleMaps);
+  }
+
+  function calcularRuta() {
+    const origin = document.getElementById('origin').value.trim();
+    const destination = document.getElementById('destination').value.trim();
+    const travelMode = document.getElementById('travel-mode').value;
+
+    if (!origin || !destination) {
+      actualizarEstado('Completa origen y destino', false);
+      return;
+    }
+
+    directionsService.route({
+      origin,
+      destination,
+      travelMode: google.maps.TravelMode[travelMode],
+      drivingOptions: {
+        departureTime: new Date(),
+        trafficModel: 'bestguess'
+      }
+    }, (response, status) => {
+      if (status === 'OK') {
+        directionsRenderer.setDirections(response);
+        const route = response.routes[0].legs[0];
+        document.getElementById('route-distance').textContent = route.distance.text;
+        document.getElementById('route-duration').textContent = route.duration_in_traffic ? route.duration_in_traffic.text : route.duration.text;
+        actualizarEstado('Ruta generada', true);
+        currentRouteUrl = crearUrlGoogleMaps(origin, destination, travelMode);
+      } else {
+        actualizarEstado('Error al calcular ruta: ' + status, false);
+      }
+    });
+  }
+
+  function toggleTraffic() {
+    const btn = document.getElementById('traffic-toggle');
+    const active = btn.classList.toggle('active');
+    if (active) {
+      trafficLayer.setMap(map);
+      btn.textContent = 'Tráfico visible';
+    } else {
+      trafficLayer.setMap(null);
+      btn.textContent = 'Mostrar tráfico';
+    }
+  }
+
+  function crearUrlGoogleMaps(origin, destination, travelMode) {
+    const mode = travelMode.toLowerCase();
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=${mode}${GOOGLE_MAPS_API_KEY ? '&key=' + GOOGLE_MAPS_API_KEY : ''}`;
+  }
+
+  function abrirEnGoogleMaps() {
+    if (!currentRouteUrl) {
+      actualizarEstado('Primero genera la ruta', false);
+      return;
+    }
+    window.open(currentRouteUrl, '_blank');
+  }
+
+  function actualizarEstado(text, ok) {
+    const statusEl = document.getElementById('route-status');
+    statusEl.textContent = text;
+    statusEl.style.color = ok ? '#22c55e' : '#f87171';
+  }
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=1078133994970&libraries=places&callback=initMap"></script>
+</body>
+</html>

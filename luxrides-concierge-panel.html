@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LuxRides — Panel Concierge</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --gold:#D4AF37;--gold-hover:#F3E5AB;--green:#22C55E;--red:#EF4444;
+  --bg:#f8f8f8;--card:#ffffff;--border:rgba(0,0,0,0.12);
+  --fg:#1a1a1a;--muted:rgba(0,0,0,0.6);--glass:rgba(255,255,255,0.95);
+}
+body{background:var(--bg);color:var(--fg);font-family:'Outfit',sans-serif;min-height:100vh;}
+.container{max-width:900px;margin:0 auto;padding:24px 16px;}
+.brand{text-align:center;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid var(--border);}
+.brand h1{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;letter-spacing:0.2em;color:var(--gold);}
+.brand p{font-size:0.7rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+
+/* Login */
+#login-section{max-width:400px;margin:60px auto;text-align:center;}
+#login-section h2{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--fg);margin-bottom:8px;}
+#login-section p{font-size:0.88rem;color:var(--muted);margin-bottom:24px;}
+#login-section input{
+  width:100%;padding:14px 16px;border:1px solid var(--border);
+  font-family:'Outfit',sans-serif;font-size:1rem;text-align:center;
+  letter-spacing:0.15em;outline:none;transition:border-color .2s;
+}
+#login-section input:focus{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold);}
+#login-section button{
+  width:100%;padding:14px;margin-top:12px;
+  background:var(--gold);border:none;color:#050505;
+  font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;
+  cursor:pointer;transition:background .2s;
+}
+#login-section button:hover{background:var(--gold-hover);}
+.login-error{color:var(--red);font-size:0.85rem;margin-top:10px;min-height:20px;}
+
+/* Dashboard */
+#dashboard{display:none;}
+.welcome-bar{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  padding:16px 20px;background:var(--card);border:1px solid var(--border);margin-bottom:24px;
+  border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.04);
+}
+.welcome-info h2{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--fg);}
+.welcome-info span{font-size:0.78rem;color:var(--muted);}
+.btn-logout{
+  padding:8px 16px;border:1px solid var(--border);background:transparent;
+  color:var(--muted);font-family:'Outfit',sans-serif;font-size:0.82rem;
+  cursor:pointer;border-radius:8px;transition:all .2s;
+}
+.btn-logout:hover{border-color:var(--red);color:var(--red);}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;}
+.stat-card{
+  padding:20px;background:var(--card);border:1px solid var(--border);
+  border-radius:12px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.04);
+}
+.stat-value{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);}
+.stat-label{font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-top:4px;}
+
+/* Table */
+.table-wrap{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.04);
+}
+.table-header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+  padding:16px 20px;border-bottom:1px solid var(--border);
+}
+.table-header h3{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--fg);}
+.table-badge{
+  font-size:0.7rem;letter-spacing:0.1em;padding:4px 10px;
+  border:1px solid rgba(212,175,55,0.45);background:rgba(212,175,55,0.10);
+  color:#7a5d10;border-radius:999px;
+}
+.table-scroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:0.88rem;}
+thead{background:rgba(212,175,55,0.06);}
+th{
+  padding:12px 16px;text-align:left;font-size:0.68rem;
+  letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);
+  font-weight:600;white-space:nowrap;border-bottom:1px solid var(--border);
+}
+td{
+  padding:12px 16px;border-bottom:1px solid rgba(0,0,0,0.05);
+  white-space:nowrap;color:var(--fg);
+  -webkit-user-select:none;user-select:none;
+}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(212,175,55,0.04);}
+.td-price{font-weight:600;}
+.td-commission{font-weight:700;color:var(--green);}
+.empty-state{padding:48px 20px;text-align:center;color:var(--muted);font-size:0.92rem;}
+
+/* NFC card info */
+.nfc-card{
+  margin-top:24px;padding:20px;background:linear-gradient(135deg,rgba(212,175,55,0.12),rgba(212,175,55,0.04));
+  border:1px dashed var(--gold);border-radius:12px;text-align:center;
+}
+.nfc-card p{font-size:0.85rem;color:#7a5d10;line-height:1.5;}
+.nfc-card .nfc-url{
+  display:inline-block;margin-top:8px;padding:8px 16px;
+  background:rgba(255,255,255,0.8);border:1px solid var(--gold);
+  border-radius:8px;font-family:monospace;font-size:0.82rem;color:var(--fg);
+  word-break:break-all;-webkit-user-select:all;user-select:all;
+}
+
+.loading-spinner{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:32px;color:var(--muted);font-size:0.88rem;
+}
+.loading-spinner::before{
+  content:'';width:20px;height:20px;
+  border:2px solid rgba(0,0,0,0.15);border-top-color:var(--gold);
+  border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media(max-width:600px){
+  th,td{padding:10px 12px;font-size:0.82rem;}
+  .stat-value{font-size:1.6rem;}
+  .welcome-bar{flex-direction:column;align-items:flex-start;}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="brand">
+    <h1>LUXRIDES</h1>
+    <p>Panel Concierge — Comisiones</p>
+  </div>
+
+  <!-- Login -->
+  <div id="login-section">
+    <h2>Acceso Concierge</h2>
+    <p>Ingresa tu código y contraseña para ver tus comisiones</p>
+    <input type="text" id="inp-code" placeholder="Tu código" autocomplete="off" maxlength="40"/>
+    <input type="password" id="inp-pass" placeholder="Contraseña" autocomplete="off" maxlength="60" style="margin-top:10px;"/>
+    <button onclick="loginConcierge()">Entrar</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+    <div class="welcome-bar">
+      <div class="welcome-info">
+        <h2 id="dash-name">—</h2>
+        <span id="dash-hotel">—</span>
+      </div>
+      <button class="btn-logout" onclick="logoutConcierge()">Cerrar sesión</button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-total-commission">$0</div>
+        <div class="stat-label">Comisión Total</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-services">0</div>
+        <div class="stat-label">Servicios Referidos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-avg">$0</div>
+        <div class="stat-label">Comisión Promedio</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>Historial de Comisiones</h3>
+        <span class="table-badge">Solo lectura</span>
+      </div>
+      <div class="table-scroll">
+        <table id="commissions-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Fecha</th>
+              <th>Cliente</th>
+              <th>Servicio</th>
+              <th>Total Servicio</th>
+              <th>Tu Comisión (10%)</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="commissions-body"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="empty-state" style="display:none;">Aún no hay servicios referidos. ¡Comparte tu tarjeta NFC!</div>
+    </div>
+
+    <div class="nfc-card">
+      <p>Graba esta URL en tu tarjeta NFC para que tus clientes reserven y ganes comisión:</p>
+      <div class="nfc-url" id="nfc-url">—</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Firebase ───
+const firebaseConfig = {
+  apiKey: "AIzaSyDlzuMEutA5yDZLpRG62WEuxBQmi6y_tq0",
+  authDomain: "luxridesreservas-d5102.firebaseapp.com",
+  databaseURL: "https://luxridesreservas-d5102-default-rtdb.firebaseio.com",
+  projectId: "luxridesreservas-d5102",
+  storageBucket: "luxridesreservas-d5102.firebasestorage.app",
+  messagingSenderId: "731425344327",
+  appId: "1:731425344327:web:3ef04d1320750cd6e6da62"
+};
+
+let firebaseReady = false;
+let db = null;
+const COMMISSION_RATE = 0.10; // 10 %
+
+const loadScript = (src) => new Promise((resolve, reject) => {
+  const s = document.createElement('script');
+  s.src = src;
+  s.onload = resolve;
+  s.onerror = () => reject(new Error('No se pudo cargar: ' + src));
+  document.head.appendChild(s);
+});
+
+(async () => {
+  try {
+    await loadScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
+    await loadScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js');
+    if (typeof firebase !== 'undefined' && !firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    firebaseReady = typeof firebase !== 'undefined' && firebase.apps.length > 0;
+    db = firebaseReady ? firebase.database() : null;
+  } catch (e) {
+    console.error('Firebase init error:', e);
+  }
+
+  // Auto-login si hay sesión guardada
+  const saved = sessionStorage.getItem('luxrides_concierge_session');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      if (data && data.code) showDashboard(data.code);
+    } catch (_) {}
+  }
+})();
+
+// ─── Login ───
+async function loginConcierge() {
+  const code = document.getElementById('inp-code').value.trim();
+  const pass = document.getElementById('inp-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+
+  if (!code) { errEl.textContent = 'Ingresa tu código.'; return; }
+  if (!pass) { errEl.textContent = 'Ingresa tu contraseña.'; return; }
+  if (!firebaseReady || !db) { errEl.textContent = 'Firebase no disponible. Intenta de nuevo.'; return; }
+
+  // Verificar que el concierge existe y la contraseña coincide
+  try {
+    const snap = await db.ref('concierges/' + code).once('value');
+    if (!snap.exists()) {
+      errEl.textContent = 'Código no encontrado. Contacta al administrador.';
+      return;
+    }
+    const data = snap.val() || {};
+    if (data.estado === 'Inactivo') {
+      errEl.textContent = 'Tu cuenta está inactiva. Contacta al administrador.';
+      return;
+    }
+    if (data.password !== pass) {
+      errEl.textContent = 'Contraseña incorrecta.';
+      return;
+    }
+    sessionStorage.setItem('luxrides_concierge_session', JSON.stringify({ code }));
+    showDashboard(code);
+  } catch (e) {
+    console.error(e);
+    errEl.textContent = 'Error al verificar código.';
+  }
+}
+
+function logoutConcierge() {
+  sessionStorage.removeItem('luxrides_concierge_session');
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('login-section').style.display = '';
+}
+
+// ─── Dashboard ───
+async function showDashboard(code) {
+  document.getElementById('login-section').style.display = 'none';
+  const dash = document.getElementById('dashboard');
+  dash.style.display = '';
+
+  // Concierge info
+  let nombre = code;
+  let hotel = '';
+  try {
+    const infoSnap = await db.ref('concierges/' + code).once('value');
+    const info = infoSnap.val() || {};
+    nombre = info.nombre || code;
+    hotel = info.hotel || '';
+  } catch (_) {}
+
+  document.getElementById('dash-name').textContent = nombre;
+  document.getElementById('dash-hotel').textContent = hotel ? 'Hotel: ' + hotel : '';
+
+  // NFC URL
+  const baseUrl = location.origin + location.pathname.replace(/[^/]*$/, '');
+  document.getElementById('nfc-url').textContent = baseUrl + 'luxrides-concierge.html?c=' + encodeURIComponent(code);
+
+  // Cargar comisiones en tiempo real
+  loadCommissions(code);
+}
+
+function loadCommissions(code) {
+  const tbody = document.getElementById('commissions-body');
+  const emptyEl = document.getElementById('empty-state');
+
+  tbody.innerHTML = '<tr><td colspan="7"><div class="loading-spinner">Cargando servicios…</div></td></tr>';
+  emptyEl.style.display = 'none';
+
+  // Escuchar cambios en tiempo real
+  db.ref('reservas').orderByChild('concierge_code').equalTo(code).on('value', (snap) => {
+    const data = snap.val();
+    tbody.innerHTML = '';
+
+    if (!data) {
+      emptyEl.style.display = '';
+      updateStats(0, 0);
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+
+    // Convertir a array y ordenar por fecha descendente
+    const entries = Object.entries(data).map(([id, r]) => ({ id, ...r }));
+    entries.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+
+    let totalCommission = 0;
+    let count = 0;
+
+    entries.forEach((r, i) => {
+      const total = parseFloat(r.total) || 0;
+      const commission = Math.round(total * COMMISSION_RATE);
+      totalCommission += commission;
+      count++;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + escapeHtml(r.fecha || '—') + '</td>' +
+        '<td>' + escapeHtml(r.cliente || 'Sin nombre') + '</td>' +
+        '<td>' + escapeHtml(r.servicio || '—') + '</td>' +
+        '<td class="td-price">$' + formatNum(total) + ' MXN</td>' +
+        '<td class="td-commission">$' + formatNum(commission) + ' MXN</td>' +
+        '<td>' + escapeHtml(r.estado || 'Pendiente') + '</td>';
+      tbody.appendChild(tr);
+    });
+
+    updateStats(totalCommission, count);
+  });
+}
+
+function updateStats(totalCommission, count) {
+  document.getElementById('stat-total-commission').textContent = '$' + formatNum(totalCommission);
+  document.getElementById('stat-services').textContent = count;
+  document.getElementById('stat-avg').textContent = '$' + formatNum(count > 0 ? Math.round(totalCommission / count) : 0);
+}
+
+function formatNum(n) {
+  return n.toLocaleString('es-MX');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Enter key en el input
+document.getElementById('inp-code').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') document.getElementById('inp-pass').focus();
+});
+document.getElementById('inp-pass').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') loginConcierge();
+});
+
+// Bloquear edición de la tabla — extra protección por si inspeccionan el DOM
+document.addEventListener('DOMContentLoaded', function () {
+  const table = document.getElementById('commissions-table');
+  if (table) {
+    table.setAttribute('contenteditable', 'false');
+    // Observar cambios en el DOM para revertir ediciones manuales
+    const observer = new MutationObserver(function () {
+      table.setAttribute('contenteditable', 'false');
+    });
+    observer.observe(table, { attributes: true, attributeFilter: ['contenteditable'] });
+  }
+});
+</script>
+</body>
+</html>

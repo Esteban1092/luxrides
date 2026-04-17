@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LuxRides VIP</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --gold:#D4AF37;--gold-hover:#F3E5AB;--green:#22C55E;--red:#EF4444;
+  --bg:#050505;--card:#111111;--border:rgba(255,255,255,0.1);
+  --fg:#ffffff;--muted:rgba(255,255,255,0.45);--glass:rgba(10,10,10,0.88);
+}
+body{background:var(--bg);color:var(--fg);font-family:'Outfit',sans-serif;height:100vh;overflow:hidden;}
+#map{position:fixed;inset:0;z-index:0;}
+.leaflet-container{background:#050505!important;}
+.leaflet-control-attribution{background:rgba(0,0,0,0.7)!important;color:#71717a!important;font-size:10px!important;}
+.leaflet-control-attribution a{color:var(--gold)!important;}
+.leaflet-popup-content-wrapper{background:#111!important;color:#fff!important;border:1px solid var(--border);border-radius:4px!important;}
+.leaflet-popup-tip{background:#111!important;}
+.leaflet-control-zoom{display:none!important;}
+#panel{
+  position:fixed;z-index:1000;
+  bottom:0;left:0;right:0;
+  max-height:75vh;border-radius:16px 16px 0 0;
+  background:var(--glass);backdrop-filter:blur(24px);
+  border:1px solid var(--border);border-bottom:none;
+  overflow-y:auto;overflow-x:hidden;
+  transition:max-height .3s ease;
+}
+@media(min-width:768px){
+  #panel{
+    top:24px;bottom:auto;left:24px;right:auto;
+    width:420px;max-height:calc(100vh - 48px);
+    border-radius:0;border:1px solid var(--border);
+  }
+}
+#panel::-webkit-scrollbar{width:5px;}
+#panel::-webkit-scrollbar-track{background:transparent;}
+#panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px;}
+.inner{padding:24px;}
+@media(min-width:768px){.inner{padding:28px;}}
+.drag-handle{display:block;width:40px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:10px auto 0;}
+@media(min-width:768px){.drag-handle{display:none;}}
+.brand{text-align:center;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);}
+.brand h1{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;letter-spacing:0.2em;color:var(--gold);}
+.brand p{font-size:0.7rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+label.lbl{display:block;font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-weight:500;}
+.field{margin-bottom:12px;position:relative;}
+.icon-wrap{position:relative;display:flex;align-items:center;}
+.icon-wrap .ico{position:absolute;left:10px;pointer-events:none;font-size:15px;}
+input[type=text],input[type=date],input[type=number]{
+  width:100%;padding:11px 12px 11px 36px;
+  background:rgba(255,255,255,0.03);border:1px solid var(--border);
+  color:var(--fg);font-family:'Outfit',sans-serif;font-size:0.875rem;
+  outline:none;transition:border-color .2s,box-shadow .2s;
+}
+input[type=text]::placeholder,input[type=number]::placeholder{color:rgba(255,255,255,0.25);}
+input:focus{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold);}
+input[type=date]{color-scheme:dark;}
+.suggestions{
+  position:absolute;top:100%;left:0;right:0;z-index:9999;
+  background:var(--card);border:1px solid var(--border);border-top:none;
+  max-height:260px;overflow-y:auto;display:none;
+}
+.suggestions.open{display:block;}
+.sug-item{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:10px 12px;border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .15s;
+}
+.sug-item:hover{background:rgba(212,175,55,0.1);}
+.sug-ico{font-size:1.1rem;flex-shrink:0;margin-top:2px;}
+.sug-name{font-size:0.85rem;font-weight:500;color:var(--fg);}
+.sug-addr{font-size:0.72rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px;}
+.btn-row{display:flex;gap:8px;}
+.btn-toggle{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:11px 8px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);
+  font-family:'Outfit',sans-serif;font-size:0.85rem;cursor:pointer;
+  transition:all .2s;
+}
+.btn-toggle.active{background:rgba(212,175,55,0.15);border-color:var(--gold);color:var(--gold);}
+.btn-toggle:hover:not(.active){background:rgba(255,255,255,0.05);}
+.hours-box{background:rgba(255,255,255,0.02);padding:12px;border:1px dashed var(--border);margin-bottom:12px;}
+.hours-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px;}
+.btn-hour{
+  padding:10px 4px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);
+  font-family:'Outfit',sans-serif;font-size:0.85rem;cursor:pointer;
+  transition:all .2s;
+}
+.btn-hour.active{background:var(--gold);border-color:var(--gold);color:#050505;font-weight:600;}
+.pax-row{display:flex;gap:6px;margin-top:6px;}
+.btn-pax{
+  flex:1;padding:10px 4px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);
+  font-family:'Outfit',sans-serif;font-size:0.85rem;cursor:pointer;
+  transition:all .2s;
+}
+.btn-pax.active{background:var(--gold);border-color:var(--gold);color:#050505;font-weight:600;}
+.vehicle-hint{text-align:center;font-size:0.75rem;color:var(--gold);margin-top:6px;}
+.tag-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);
+  margin-bottom:12px;
+}
+.tag-label{display:flex;align-items:center;gap:10px;font-size:0.875rem;color:var(--fg);}
+.switch{position:relative;width:46px;height:26px;border-radius:999px;border:none;cursor:pointer;transition:background .2s;background:rgba(255,255,255,0.1);}
+.switch.on{background:var(--gold);}
+.switch-thumb{
+  position:absolute;top:3px;left:3px;width:20px;height:20px;
+  background:#fff;border-radius:50%;transition:left .2s;
+}
+.switch.on .switch-thumb{left:23px;}
+.time-inputs{display:flex;align-items:center;gap:4px;margin-top:6px;}
+.time-inputs input[type=number]{width:52px;padding:11px 4px;text-align:center;}
+.time-colon{color:var(--muted);font-size:1.2rem;font-weight:700;}
+.ampm-wrap{display:flex;}
+.btn-ampm{
+  padding:11px 10px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);
+  font-family:'Outfit',sans-serif;font-size:0.75rem;cursor:pointer;
+  transition:all .2s;
+}
+.btn-ampm:last-child{border-left:none;}
+.btn-ampm.active{background:var(--gold);border-color:var(--gold);color:#050505;font-weight:600;}
+#btn-calc{
+  width:100%;padding:14px;margin-top:20px;
+  background:var(--gold);border:none;color:#050505;
+  font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:background .2s;
+}
+#btn-calc:hover{background:var(--gold-hover);}
+#btn-calc:disabled{opacity:0.5;cursor:not-allowed;}
+.spin{width:18px;height:18px;border:2px solid rgba(5,5,5,0.3);border-top-color:#050505;border-radius:50%;animation:spin .7s linear infinite;display:none;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#results{margin-top:20px;padding-top:20px;border-top:1px solid var(--border);display:none;}
+.route-box{
+  background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(34,197,94,0.05));
+  border:1px solid var(--green);padding:12px;margin-bottom:12px;text-align:center;
+}
+.route-label{font-size:0.68rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--green);margin-bottom:8px;}
+.route-nums{display:flex;justify-content:center;gap:32px;}
+.route-num{font-size:1.5rem;font-weight:700;color:var(--fg);}
+.route-sub{font-size:0.68rem;text-transform:uppercase;color:var(--muted);}
+.arrival-box{
+  background:rgba(212,175,55,0.1);border:1px dashed var(--gold);
+  padding:10px;margin-bottom:12px;text-align:center;
+}
+.arrival-lbl{font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);}
+.arrival-time{font-size:1.25rem;font-weight:600;color:var(--gold);}
+.vehicle-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.vehicle-icon{font-size:1.5rem;color:var(--gold);}
+.vehicle-name{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:600;}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.info-cell{padding:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);}
+.info-cell-lbl{font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+.info-cell-val{font-size:1.1rem;font-weight:600;}
+.casetas-notice{
+  padding:10px 12px;background:rgba(212,175,55,0.1);
+  border-left:3px solid var(--gold);margin-bottom:12px;
+  font-size:0.85rem;color:var(--gold);
+}
+.price-box{
+  display:flex;align-items:baseline;justify-content:center;gap:8px;
+  padding:20px;background:linear-gradient(135deg,rgba(212,175,55,0.15),rgba(212,175,55,0.05));
+  border:1px solid var(--gold);margin-bottom:12px;
+}
+.price-label{font-size:0.75rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--muted);}
+.price-amount{font-family:'Playfair Display',serif;font-size:3rem;font-weight:700;color:var(--gold);}
+.price-currency{font-size:0.9rem;color:var(--muted);}
+#btn-wa{
+  width:100%;padding:14px;border:none;
+  background:#25D366;color:#fff;
+  font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:background .2s;
+}
+#btn-wa:hover{background:#1ebe5d;}
+.date-time-row{display:flex;gap:12px;margin-bottom:12px;}
+.date-time-row .date-wrap{flex:1;}
+.date-time-row .time-wrap{flex:1;}
+.error-msg{
+  background:rgba(239,68,68,0.12);border:1px solid var(--red);
+  color:#fca5a5;padding:10px 12px;margin-top:8px;font-size:0.85rem;
+  display:none;border-radius:2px;
+}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="panel">
+  <div class="drag-handle"></div>
+  <div class="inner">
+
+    <div class="brand">
+      <h1>LUXRIDES</h1>
+      <p>Transporte Ejecutivo VIP</p>
+    </div>
+
+    <div class="field">
+      <label class="lbl">Nombre del Cliente</label>
+      <div class="icon-wrap">
+        <span class="ico">👤</span>
+        <input type="text" id="inp-nombre" placeholder="Ej: Estebanquito"/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="lbl">Tipo de Servicio</label>
+      <div class="btn-row">
+        <button class="btn-toggle active" data-svc="I" onclick="setServicio('I')">🧭 Por Kilometraje</button>
+        <button class="btn-toggle" data-svc="T" onclick="setServicio('T')">⏱️ Por Tiempo</button>
+      </div>
+    </div>
+
+    <div class="hours-box" id="hours-box" style="display:none;">
+      <label class="lbl">Horas de Servicio (Mínimo 2h)</label>
+      <div class="hours-grid" id="hours-grid"></div>
+    </div>
+
+    <div class="field" id="field-origen">
+      <label class="lbl">Origen (Recogida)</label>
+      <div class="icon-wrap">
+        <span class="ico">📍</span>
+        <input type="text" id="inp-origen" placeholder="Ej: Club de Golf Bosques" autocomplete="off"/>
+      </div>
+      <div class="suggestions" id="sug-origen"></div>
+    </div>
+
+    <div class="field" id="field-destino">
+      <label class="lbl">Destino Principal</label>
+      <div class="icon-wrap">
+        <span class="ico">🏁</span>
+        <input type="text" id="inp-destino" placeholder="Ej: Pujol" autocomplete="off"/>
+      </div>
+      <div class="suggestions" id="sug-destino"></div>
+    </div>
+
+    <div class="tag-row">
+      <div class="tag-label"><span style="color:var(--gold)">🚗</span> Tag Pase / Segundo Piso</div>
+      <button class="switch" id="switch-tag" onclick="toggleTag()"><span class="switch-thumb"></span></button>
+    </div>
+
+    <div class="date-time-row">
+      <div class="date-wrap">
+        <label class="lbl">Fecha</label>
+        <div class="icon-wrap">
+          <span class="ico">📅</span>
+          <input type="date" id="inp-fecha"/>
+        </div>
+      </div>
+      <div class="time-wrap">
+        <label class="lbl">Hora de Recogida</label>
+        <div class="time-inputs">
+          <input type="number" id="inp-hora" value="9" min="1" max="12" style="padding-left:4px!important;"/>
+          <span class="time-colon">:</span>
+          <input type="number" id="inp-min" value="00" min="0" max="59" style="padding-left:4px!important;"/>
+          <div class="ampm-wrap">
+            <button class="btn-ampm active" id="btn-am" onclick="setAmpm('AM')">AM</button>
+            <button class="btn-ampm" id="btn-pm" onclick="setAmpm('PM')">PM</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="lbl">Número de Pasajeros</label>
+      <div class="pax-row" id="pax-row"></div>
+      <div class="vehicle-hint" id="vehicle-hint">Sedán VIP Diamond</div>
+    </div>
+
+    <div class="error-msg" id="error-msg"></div>
+
+    <button id="btn-calc" onclick="calcular()">
+      <div class="spin" id="spin"></div>
+      <span id="btn-calc-txt">🔍 Calcular Precio y Ruta</span>
+    </button>
+
+    <div id="results">
+      <div class="route-box" id="route-box">
+        <div class="route-label">📍 Ruta Calculada</div>
+        <div class="route-nums">
+          <div><div class="route-num" id="r-km">—</div><div class="route-sub">Kilómetros</div></div>
+          <div><div class="route-num" id="r-min">—</div><div class="route-sub">Minutos</div></div>
+        </div>
+      </div>
+      <div class="arrival-box" id="arrival-box">
+        <div class="arrival-lbl">⏰ Hora estimada de llegada</div>
+        <div class="arrival-time" id="r-arrival">—</div>
+      </div>
+      <div class="vehicle-row">
+        <span class="vehicle-icon">🚘</span>
+        <span class="vehicle-name" id="r-vehiculo">Sedán VIP Diamond</span>
+      </div>
+      <div class="info-grid" id="info-grid">
+        <div class="info-cell"><div class="info-cell-lbl">Distancia Total</div><div class="info-cell-val" id="r-km2">—</div></div>
+        <div class="info-cell"><div class="info-cell-lbl">Tiempo de Viaje</div><div class="info-cell-val" id="r-min2">—</div></div>
+      </div>
+      <div class="casetas-notice" id="casetas-notice" style="display:none;"></div>
+      <div class="price-box">
+        <span class="price-label">Total</span>
+        <span class="price-amount" id="r-precio">$0</span>
+        <span class="price-currency">MXN</span>
+      </div>
+      <button id="btn-wa" onclick="enviarWhatsApp()">💬 Confirmar por WhatsApp</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ─── LUGARES ───────────────────────────────────────────────
+const LUGARES = [
+  { nombre:"Club de Golf Bosques", display:"Club de Golf Bosques, Bosques de las Lomas, CDMX", lat:19.3890, lon:-99.2650, tipo:"golf" },
+  { nombre:"Club de Golf Chapultepec", display:"Club de Golf Chapultepec, Lomas de Chapultepec, CDMX", lat:19.4320, lon:-99.2115, tipo:"golf" },
+  { nombre:"Club de Golf México", display:"Club de Golf México, Av. Club de Golf 1, CDMX", lat:19.3985, lon:-99.2084, tipo:"golf" },
+  { nombre:"Club de Golf Bellavista", display:"Club de Golf Bellavista, Huixquilucan, Estado de México", lat:19.3648, lon:-99.2596, tipo:"golf" },
+  { nombre:"Club de Golf Los Encinos", display:"Club de Golf Los Encinos, Naucalpan, Estado de México", lat:19.4848, lon:-99.2344, tipo:"golf" },
+  { nombre:"Club Campestre de Santa Anita", display:"Club Campestre Santa Anita, Calimaya, Estado de México", lat:19.1455, lon:-99.6059, tipo:"golf" },
+  { nombre:"Club Campestre La Hacienda", display:"Club Campestre La Hacienda, Estado de México", lat:19.5056, lon:-99.5008, tipo:"golf" },
+  { nombre:"Club de Golf Country Club México", display:"Country Club México, Polanco, CDMX", lat:19.4367, lon:-99.2011, tipo:"golf" },
+  { nombre:"Hotel Live Aqua Urban Resort Bosques", display:"Hotel Live Aqua Urban Resort, Bosques de las Lomas, CDMX", lat:19.3954, lon:-99.2622, tipo:"hotel" },
+  { nombre:"Hotel Live Aqua Reforma", display:"Hotel Live Aqua Reforma, Paseo de la Reforma, CDMX", lat:19.4285, lon:-99.1695, tipo:"hotel" },
+  { nombre:"Hotel St. Regis Mexico City", display:"Hotel St. Regis, Paseo de la Reforma 439, CDMX", lat:19.4255, lon:-99.1732, tipo:"hotel" },
+  { nombre:"Hotel Four Seasons Mexico City", display:"Hotel Four Seasons, Paseo de la Reforma 500, CDMX", lat:19.4258, lon:-99.1788, tipo:"hotel" },
+  { nombre:"Hotel JW Marriott", display:"Hotel JW Marriott, Polanco, CDMX", lat:19.4316, lon:-99.1918, tipo:"hotel" },
+  { nombre:"Hotel W Mexico City", display:"Hotel W Mexico City, Polanco, CDMX", lat:19.4329, lon:-99.1952, tipo:"hotel" },
+  { nombre:"Hotel Camino Real Polanco", display:"Hotel Camino Real Polanco, CDMX", lat:19.4362, lon:-99.1985, tipo:"hotel" },
+  { nombre:"Hotel Hyatt Regency", display:"Hotel Hyatt Regency, Polanco, CDMX", lat:19.4298, lon:-99.1932, tipo:"hotel" },
+  { nombre:"Terminal 1 AICM", display:"Aeropuerto Internacional de la Ciudad de México Terminal 1", lat:19.4363, lon:-99.0721, tipo:"airport" },
+  { nombre:"Terminal 2 AICM", display:"Aeropuerto Internacional de la Ciudad de México Terminal 2", lat:19.4334, lon:-99.0559, tipo:"airport" },
+  { nombre:"Aeropuerto Felipe Ángeles", display:"Aeropuerto Internacional Felipe Ángeles (AIFA)", lat:19.7466, lon:-99.0687, tipo:"airport" },
+  { nombre:"Torre Mayor", display:"Torre Mayor, Paseo de la Reforma 505, CDMX", lat:19.4268, lon:-99.1811, tipo:"business" },
+  { nombre:"World Trade Center", display:"World Trade Center Ciudad de México", lat:19.3932, lon:-99.1778, tipo:"business" },
+  { nombre:"Santa Fe", display:"Centro Santa Fe, CDMX", lat:19.3590, lon:-99.2754, tipo:"business" },
+  { nombre:"Polanco", display:"Colonia Polanco, Miguel Hidalgo, CDMX", lat:19.4336, lon:-99.1925, tipo:"neighborhood" },
+  { nombre:"Condesa", display:"Colonia Condesa, Cuauhtémoc, CDMX", lat:19.4131, lon:-99.1728, tipo:"neighborhood" },
+  { nombre:"Roma Norte", display:"Colonia Roma Norte, Cuauhtémoc, CDMX", lat:19.4185, lon:-99.1628, tipo:"neighborhood" },
+  { nombre:"Coyoacán", display:"Colonia Coyoacán, CDMX", lat:19.3500, lon:-99.1620, tipo:"neighborhood" },
+  { nombre:"Lomas de Chapultepec", display:"Lomas de Chapultepec, CDMX", lat:19.4225, lon:-99.2180, tipo:"neighborhood" },
+  { nombre:"Bosques de las Lomas", display:"Bosques de las Lomas, Cuajimalpa, CDMX", lat:19.3954, lon:-99.2622, tipo:"neighborhood" },
+  { nombre:"Interlomas", display:"Interlomas, Huixquilucan, Estado de México", lat:19.3960, lon:-99.2860, tipo:"neighborhood" },
+  { nombre:"Centro Histórico", display:"Centro Histórico, CDMX", lat:19.4326, lon:-99.1332, tipo:"neighborhood" },
+  { nombre:"Perisur", display:"Centro Comercial Perisur, Coyoacán", lat:19.3045, lon:-99.1892, tipo:"shopping" },
+  { nombre:"Antara Fashion Hall", display:"Antara Fashion Hall, Polanco", lat:19.4378, lon:-99.1993, tipo:"shopping" },
+  { nombre:"Pujol", display:"Pujol Restaurant, Polanco, CDMX", lat:19.4329, lon:-99.1925, tipo:"restaurant" },
+  { nombre:"Quintonil", display:"Quintonil Restaurant, Polanco, CDMX", lat:19.4321, lon:-99.1918, tipo:"restaurant" },
+  { nombre:"Contramar", display:"Contramar Restaurant, Roma Norte", lat:19.4185, lon:-99.1628, tipo:"restaurant" },
+  { nombre:"Bosque de Chapultepec", display:"Bosque de Chapultepec, CDMX", lat:19.4197, lon:-99.1896, tipo:"park" },
+  { nombre:"Ángel de la Independencia", display:"Ángel de la Independencia, Paseo de la Reforma", lat:19.4270, lon:-99.1676, tipo:"landmark" },
+  { nombre:"Palacio de Bellas Artes", display:"Palacio de Bellas Artes, Centro Histórico", lat:19.4352, lon:-99.1412, tipo:"landmark" },
+  { nombre:"Zócalo", display:"Plaza de la Constitución (Zócalo), CDMX", lat:19.4326, lon:-99.1332, tipo:"landmark" },
+  { nombre:"Puebla", display:"Ciudad de Puebla, Puebla", lat:19.0414, lon:-98.2063, tipo:"city" },
+  { nombre:"Cuernavaca", display:"Cuernavaca, Morelos", lat:18.9186, lon:-99.2342, tipo:"city" },
+  { nombre:"Querétaro", display:"Santiago de Querétaro, Querétaro", lat:20.5888, lon:-100.3899, tipo:"city" },
+  { nombre:"Toluca", display:"Toluca de Lerdo, Estado de México", lat:19.2826, lon:-99.6557, tipo:"city" },
+  { nombre:"Naucalpan", display:"Naucalpan de Juárez, Estado de México", lat:19.4784, lon:-99.2396, tipo:"municipality" },
+  { nombre:"Tlalnepantla", display:"Tlalnepantla de Baz, Estado de México", lat:19.5372, lon:-99.1946, tipo:"municipality" },
+  { nombre:"Aguascalientes", display:"Aguascalientes, Aguascalientes", lat:21.8853, lon:-102.2916, tipo:"state" },
+  { nombre:"Baja California", display:"Baja California, México", lat:32.5333, lon:-116.9833, tipo:"state" },
+  { nombre:"Baja California Sur", display:"Baja California Sur, México", lat:25.8406, lon:-111.6333, tipo:"state" },
+  { nombre:"Campeche", display:"Campeche, Campeche", lat:19.8301, lon:-90.5349, tipo:"state" },
+  { nombre:"Chiapas", display:"Chiapas, México", lat:16.7569, lon:-93.1292, tipo:"state" },
+  { nombre:"Chihuahua", display:"Chihuahua, Chihuahua", lat:28.6320, lon:-106.0691, tipo:"state" },
+  { nombre:"Coahuila", display:"Coahuila, México", lat:27.0587, lon:-101.7068, tipo:"state" },
+  { nombre:"Colima", display:"Colima, México", lat:19.2433, lon:-103.7250, tipo:"state" },
+  { nombre:"Durango", display:"Durango, México", lat:24.0277, lon:-104.6532, tipo:"state" },
+  { nombre:"Guanajuato", display:"Guanajuato, México", lat:21.0190, lon:-101.2574, tipo:"state" },
+  { nombre:"Guerrero", display:"Guerrero, México", lat:17.5519, lon:-99.5043, tipo:"state" },
+  { nombre:"Hidalgo", display:"Hidalgo, México", lat:20.0911, lon:-98.7620, tipo:"state" },
+  { nombre:"Jalisco", display:"Jalisco, México", lat:20.6597, lon:-103.3496, tipo:"state" },
+  { nombre:"Michoacán", display:"Michoacán, México", lat:19.7030, lon:-101.1840, tipo:"state" },
+  { nombre:"Morelos", display:"Morelos, México", lat:18.6812, lon:-99.1013, tipo:"state" },
+  { nombre:"Nayarit", display:"Nayarit, México", lat:21.7514, lon:-104.8455, tipo:"state" },
+  { nombre:"Nuevo León", display:"Nuevo León, México", lat:25.5922, lon:-99.9962, tipo:"state" },
+  { nombre:"Oaxaca", display:"Oaxaca, México", lat:17.0732, lon:-96.7266, tipo:"state" },
+  { nombre:"Querétaro", display:"Querétaro, México", lat:20.5888, lon:-100.3899, tipo:"state" },
+  { nombre:"Quintana Roo", display:"Quintana Roo, México", lat:19.1817, lon:-88.4791, tipo:"state" },
+  { nombre:"San Luis Potosí", display:"San Luis Potosí, México", lat:22.1490, lon:-100.9790, tipo:"state" },
+  { nombre:"Sinaloa", display:"Sinaloa, México", lat:25.1720, lon:-107.4795, tipo:"state" },
+  { nombre:"Sonora", display:"Sonora, México", lat:29.2972, lon:-110.3300, tipo:"state" },
+  { nombre:"Tabasco", display:"Tabasco, México", lat:17.8409, lon:-92.6189, tipo:"state" },
+  { nombre:"Tamaulipas", display:"Tamaulipas, México", lat:23.7369, lon:-99.1411, tipo:"state" },
+  { nombre:"Tlaxcala", display:"Tlaxcala, México", lat:19.3139, lon:-98.2408, tipo:"state" },
+  { nombre:"Veracruz", display:"Veracruz, México", lat:19.1738, lon:-96.1342, tipo:"state" },
+  { nombre:"Yucatán", display:"Yucatán, México", lat:20.9674, lon:-89.5926, tipo:"state" },
+  { nombre:"Zacatecas", display:"Zacatecas, México", lat:22.7709, lon:-102.5831, tipo:"state" },
+  { nombre:"Ciudad de México", display:"Ciudad de México, México", lat:19.4326, lon:-99.1332, tipo:"state" },
+];
+
+const ICONOS = {hotel:'🏨',airport:'✈️',restaurant:'🍽️',park:'🌳',shopping:'🛍️',business:'🏢',neighborhood:'🏘️',city:'🌆',landmark:'🏛️',municipality:'📍',golf:'⛳',state:'🏞️'};
+function getIcono(tipo){ return ICONOS[tipo] || '📍'; }
+
+// ─── STATE ─────────────────────────────────────────────────
+let servicio  = 'I';
+let hSel      = 2;
+let pasajeros = 1;
+let ampm      = 'AM';
+let tagActivo = false;
+let coordOrigen  = null;
+let coordDestino = null;
+let resultado    = null;
+let routeLine    = null;
+let markerOrigen  = null;
+let markerDestino = null;
+
+// Cache de resultados de sugerencias (en JS, no en el DOM)
+const sugCache = { 'inp-origen': [], 'inp-destino': [] };
+
+// ─── MAP ────────────────────────────────────────────────────
+const map = L.map('map', { center:[19.4326,-99.1332], zoom:11, zoomControl:false });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; <a href="https://carto.com/">CARTO</a>',
+  maxZoom:19
+}).addTo(map);
+
+function makeIcon(color, emoji){
+  const size = 28;
+  const inner = emoji
+    ? `<circle cx="12" cy="12" r="6" fill="#050505"/><text x="12" y="16" text-anchor="middle" font-size="9" fill="#fff">${emoji}</text>`
+    : `<circle cx="12" cy="12" r="5" fill="#fff"/>`;
+  return L.divIcon({
+    html:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${size}" height="${size*1.5}">
+      <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24c0-6.6-5.4-12-12-12z" fill="${color}"/>
+      ${inner}
+    </svg>`,
+    className:'', iconSize:[size, size*1.5], iconAnchor:[size/2, size*1.5]
+  });
+}
+const goldIcon  = makeIcon('#D4AF37');
+const greenIcon = makeIcon('#22C55E');
+const redIcon   = makeIcon('#EF4444');
+const golfIcon  = makeIcon('#22C55E', '⛳');
+
+LUGARES.forEach(l => {
+  const icon = l.tipo === 'golf' ? golfIcon : goldIcon;
+  L.marker([l.lat, l.lon], {icon}).addTo(map)
+    .bindPopup(`<strong>${l.nombre}</strong><br><span style="color:#A1A1AA">${getIcono(l.tipo)} ${l.tipo}</span>`);
+});
+
+// ─── INIT ───────────────────────────────────────────────────
+document.getElementById('inp-fecha').value = new Date().toISOString().split('T')[0];
+buildHours();
+buildPax();
+
+function buildHours(){
+  const HOURS = [2,3,4,5,6,8];
+  document.getElementById('hours-grid').innerHTML =
+    HOURS.map(h => `<button class="btn-hour${h===hSel?' active':''}" onclick="setHours(${h})">${h}h</button>`).join('');
+}
+
+function buildPax(){
+  document.getElementById('pax-row').innerHTML =
+    [1,2,3,4,5,6,7].map(p => `<button class="btn-pax${p===pasajeros?' active':''}" onclick="setPax(${p})">${p}</button>`).join('');
+  document.getElementById('vehicle-hint').textContent = pasajeros<=4 ? 'Sedán VIP Diamond' : 'SUV Platinum Diamond';
+}
+
+// ─── CONTROLES ──────────────────────────────────────────────
+function setServicio(val){
+  servicio = val;
+  document.querySelectorAll('.btn-toggle').forEach(b => b.classList.toggle('active', b.dataset.svc===val));
+  document.getElementById('hours-box').style.display     = val==='T' ? 'block' : 'none';
+  document.getElementById('field-destino').style.display = val==='I' ? 'block' : 'none';
+}
+
+function setHours(h){
+  hSel = h;
+  document.querySelectorAll('.btn-hour').forEach(b => b.classList.toggle('active', parseInt(b.textContent)===h));
+}
+
+function setPax(p){
+  pasajeros = p;
+  document.querySelectorAll('.btn-pax').forEach(b => b.classList.toggle('active', parseInt(b.textContent)===p));
+  document.getElementById('vehicle-hint').textContent = p<=4 ? 'Sedán VIP Diamond' : 'SUV Platinum Diamond';
+}
+
+function setAmpm(val){
+  ampm = val;
+  document.getElementById('btn-am').classList.toggle('active', val==='AM');
+  document.getElementById('btn-pm').classList.toggle('active', val==='PM');
+}
+
+function toggleTag(){
+  tagActivo = !tagActivo;
+  document.getElementById('switch-tag').classList.toggle('on', tagActivo);
+}
+
+// ─── BÚSQUEDA DE LUGARES ────────────────────────────────────
+let timerOri = null, timerDes = null;
+
+function setupSearch(inputId, sugId){
+  const inp = document.getElementById(inputId);
+  const sug = document.getElementById(sugId);
+
+  inp.addEventListener('input', () => {
+    if(inputId==='inp-origen') clearTimeout(timerOri); else clearTimeout(timerDes);
+    const q = inp.value.trim().toLowerCase();
+    if(q.length < 2){ sug.classList.remove('open'); sug.innerHTML=''; return; }
+
+    const t = setTimeout(async () => {
+      let results = LUGARES.filter(l =>
+        l.nombre.toLowerCase().includes(q) || l.display.toLowerCase().includes(q)
+      );
+
+      if(results.length < 5){
+        try{
+          const r = await fetch(
+            `https://photon.komoot.io/api/?q=${encodeURIComponent(inp.value)}&lat=19.43&lon=-99.13&limit=5&lang=es`
+          );
+          const d = await r.json();
+          (d.features || []).forEach(f => {
+            const p = f.properties, c = f.geometry.coordinates;
+            const nombre = p.name || '';
+            let parts = [nombre];
+            if(p.city && p.city !== nombre) parts.push(p.city);
+            if(p.state && !parts.includes(p.state)) parts.push(p.state);
+            const display = parts.filter(Boolean).join(', ');
+            if(!results.find(r => r.nombre===nombre && Math.abs(r.lat-c[1])<0.001))
+              results.push({ nombre: nombre||display, display, lat:c[1], lon:c[0], tipo:p.osm_value||'place' });
+          });
+        }catch(e){}
+      }
+
+      results = results.slice(0, 8);
+      // Guardar en caché JS
+      sugCache[inputId] = results;
+
+      sug.innerHTML = results.map((s, i) => `
+        <div class="sug-item" data-idx="${i}">
+          <span class="sug-ico">${getIcono(s.tipo)}</span>
+          <div>
+            <div class="sug-name">${s.nombre}</div>
+            <div class="sug-addr">${s.display}</div>
+          </div>
+        </div>`).join('');
+
+      sug.classList.toggle('open', results.length > 0);
+    }, 300);
+
+    if(inputId==='inp-origen') timerOri=t; else timerDes=t;
+  });
+
+  // Delegación de eventos — sin onclick en el HTML generado
+  sug.addEventListener('mousedown', e => {
+    const item = e.target.closest('.sug-item');
+    if(!item) return;
+    e.preventDefault(); // Evita que el input pierda foco antes de seleccionar
+    const idx = parseInt(item.dataset.idx);
+    selectSug(idx, inputId, sugId);
+  });
+
+  document.addEventListener('click', e => {
+    if(!inp.contains(e.target) && !sug.contains(e.target))
+      sug.classList.remove('open');
+  });
+}
+
+function selectSug(idx, inputId, sugId){
+  const item = sugCache[inputId][idx];
+  if(!item) return;
+
+  document.getElementById(inputId).value = item.display;
+  document.getElementById(sugId).classList.remove('open');
+
+  if(inputId === 'inp-origen'){
+    coordOrigen = { lat:item.lat, lon:item.lon, display:item.display };
+    if(markerOrigen) map.removeLayer(markerOrigen);
+    markerOrigen = L.marker([item.lat, item.lon], {icon:greenIcon}).addTo(map)
+      .bindPopup(`<strong>Origen</strong><br>${item.display}`);
+    map.setView([item.lat, item.lon], 14);
+  } else {
+    coordDestino = { lat:item.lat, lon:item.lon, display:item.display };
+    if(markerDestino) map.removeLayer(markerDestino);
+    markerDestino = L.marker([item.lat, item.lon], {icon:redIcon}).addTo(map)
+      .bindPopup(`<strong>Destino</strong><br>${item.display}`);
+  }
+}
+
+setupSearch('inp-origen', 'sug-origen');
+setupSearch('inp-destino', 'sug-destino');
+
+// ─── CALCULAR ───────────────────────────────────────────────
+function mostrarError(msg){
+  const el = document.getElementById('error-msg');
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+}
+
+function resetBtn(){
+  document.getElementById('btn-calc').disabled = false;
+  document.getElementById('spin').style.display = 'none';
+  document.getElementById('btn-calc-txt').textContent = '🔍 Calcular Precio y Ruta';
+}
+
+async function calcular(){
+  const nombre = document.getElementById('inp-nombre').value.trim();
+  document.getElementById('error-msg').style.display = 'none';
+
+  if(!nombre)     { mostrarError('Por favor ingresa el nombre del cliente'); return; }
+  if(!coordOrigen){ mostrarError('Por favor selecciona un origen de la lista desplegable'); return; }
+  if(servicio==='I' && !coordDestino){ mostrarError('Por favor selecciona un destino de la lista desplegable'); return; }
+
+  document.getElementById('btn-calc').disabled = true;
+  document.getElementById('spin').style.display = 'block';
+  document.getElementById('btn-calc-txt').textContent = 'Calculando...';
+  document.getElementById('results').style.display = 'none';
+
+  let distanciaKm = 0, duracionMin = 0;
+
+  if(servicio === 'I'){
+    if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${coordOrigen.lon},${coordOrigen.lat};${coordDestino.lon},${coordDestino.lat}?overview=full&geometries=geojson`;
+      const resp = await fetch(url);
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      if(!data || data.code !== 'Ok' || !data.routes?.length){
+        mostrarError('No se pudo calcular la ruta. Verifica los puntos seleccionados.');
+        resetBtn(); return;
+      }
+      const route = data.routes[0];
+      distanciaKm = parseFloat((route.distance / 1000).toFixed(1));
+      duracionMin = Math.max(1, Math.round(route.duration / 60));
+      const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+      routeLine = L.polyline(coords, {color:'#D4AF37', weight:4, opacity:0.9}).addTo(map);
+      map.fitBounds(L.latLngBounds(coords), {padding:[50,50]});
+    } catch(e) {
+      mostrarError('Error al calcular la ruta. Verifica tu conexión e intenta de nuevo.');
+      resetBtn(); return;
+    }
+  }
+
+  // Casetas
+  const destText = (coordDestino?.display || '').toLowerCase();
+  let casetas = 0;
+  if(destText.includes('puebla'))                                          casetas = 216;
+  else if(destText.includes('cuernavaca'))                                 casetas = 149;
+  else if(destText.includes('queretaro') || destText.includes('querétaro')) casetas = 204;
+  if(tagActivo) casetas += 120;
+  const casetasTotal = casetas * 2;
+
+  // Precio
+  let totalPrecio;
+  if(servicio === 'I'){
+    const base    = pasajeros <= 4 ? 200 : 300;
+    const extraKm = pasajeros <= 4 ? 35  : 45;
+    const kmExtra = Math.max(0, Math.ceil(distanciaKm) - 4);
+    totalPrecio = base + kmExtra * extraKm + casetasTotal;
+  } else {
+    const tarifa = pasajeros <= 4 ? 550 : 760;
+    totalPrecio  = Math.round(tarifa * hSel + casetasTotal);
+  }
+
+  resultado = { distanciaKm, duracionMin, totalPrecio, casetasTotal };
+  renderResults();
+  resetBtn();
+}
+
+function renderResults(){
+  const { distanciaKm, duracionMin, totalPrecio, casetasTotal } = resultado;
+  const vehiculo = pasajeros <= 4 ? 'Sedán VIP Diamond' : 'SUV Platinum Diamond';
+  const esKm = servicio === 'I';
+
+  document.getElementById('results').style.display    = 'block';
+  document.getElementById('route-box').style.display  = esKm ? 'block' : 'none';
+  document.getElementById('arrival-box').style.display = esKm ? 'block' : 'none';
+  document.getElementById('info-grid').style.display  = esKm ? 'grid'  : 'none';
+
+  if(esKm){
+    document.getElementById('r-km').textContent     = distanciaKm;
+    document.getElementById('r-min').textContent    = duracionMin;
+    document.getElementById('r-km2').textContent    = distanciaKm + ' km';
+    document.getElementById('r-min2').textContent   = duracionMin + ' min';
+    document.getElementById('r-arrival').textContent = calcHoraLlegada(duracionMin);
+  }
+
+  document.getElementById('r-vehiculo').textContent = vehiculo;
+  document.getElementById('r-precio').textContent   = '$' + totalPrecio.toLocaleString();
+
+  const casetasEl = document.getElementById('casetas-notice');
+  if(casetasTotal > 0){
+    casetasEl.style.display = 'block';
+    casetasEl.textContent   = `Casetas incluidas: $${casetasTotal.toLocaleString()} MXN`;
+  } else {
+    casetasEl.style.display = 'none';
+  }
+}
+
+function calcHoraLlegada(durMin){
+  let h = parseInt(document.getElementById('inp-hora').value) || 9;
+  let m = parseInt(document.getElementById('inp-min').value)  || 0;
+  if(ampm === 'PM' && h !== 12) h += 12;
+  if(ampm === 'AM' && h === 12) h = 0;
+  let total = h * 60 + m + durMin;
+  let hl = Math.floor(total / 60) % 24;
+  let ml = total % 60;
+  const ap = hl >= 12 ? 'PM' : 'AM';
+  if(hl > 12) hl -= 12;
+  if(hl === 0) hl = 12;
+  return `${hl}:${ml.toString().padStart(2,'0')} ${ap}`;
+}
+
+// ─── WHATSAPP ───────────────────────────────────────────────
+function enviarWhatsApp(){
+  if(!resultado) return;
+  const nombre   = document.getElementById('inp-nombre').value.trim();
+  const fecha    = document.getElementById('inp-fecha').value;
+  const hora     = document.getElementById('inp-hora').value;
+  const min      = document.getElementById('inp-min').value.toString().padStart(2,'0');
+  const vehiculo = pasajeros <= 4 ? 'Sedán VIP Diamond' : 'SUV Platinum Diamond';
+  const horaLleg = servicio === 'I' ? calcHoraLlegada(resultado.duracionMin) : '';
+
+  const lines = [
+    `*🚗 RESERVA LUXRIDES VIP*`,
+    `━━━━━━━━━━━━━━━━━`,
+    `👤 *Cliente:* ${nombre}`,
+    `🚘 *Vehículo:* ${vehiculo}`,
+    `📍 *Origen:* ${coordOrigen?.display || ''}`,
+    servicio==='I' ? `🏁 *Destino:* ${coordDestino?.display || ''}` : `⏱️ *Servicio:* ${hSel} horas`,
+    servicio==='I' ? `📏 *Distancia:* ${resultado.distanciaKm} km` : '',
+    servicio==='I' ? `⏳ *Tiempo:* ${resultado.duracionMin} minutos` : '',
+    `📅 *Fecha:* ${fecha}`,
+    `⏰ *Hora de recogida:* ${hora}:${min} ${ampm}`,
+    servicio==='I' ? `🏁 *Hora estimada llegada:* ${horaLleg}` : '',
+    `👥 *Pasajeros:* ${pasajeros}`,
+    tagActivo ? `✅ *Tag Pase incluido*` : '',
+    `━━━━━━━━━━━━━━━━━`,
+    `💰 *TOTAL: $${resultado.totalPrecio.toLocaleString()} MXN*`,
+  ].filter(l => l !== '').join('\n');
+
+  window.open(`https://wa.me/525527729551?text=${encodeURIComponent(lines)}`, '_blank');
+}
+</script>
+</body>
+</html>

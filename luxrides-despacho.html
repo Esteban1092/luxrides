@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LuxRides — Central de Despacho</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Outfit:wght@300;400;500;600;700&display=swap"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --gold:#D4AF37;--gold-hover:#F3E5AB;
+      --green:#22C55E;--red:#EF4444;--blue:#3B82F6;
+      --bg:#0a0a0a;--card:#141414;--card2:#1a1a1a;
+      --border:rgba(255,255,255,0.10);--fg:#f0f0f0;--muted:rgba(255,255,255,0.45);
+    }
+    body{
+      background:var(--bg);color:var(--fg);
+      font-family:'Outfit',sans-serif;
+      min-height:100vh;padding:20px;
+    }
+    header{
+      text-align:center;padding-bottom:18px;
+      border-bottom:2px solid var(--gold);margin-bottom:24px;
+    }
+    header h1{
+      font-family:'Playfair Display',serif;
+      font-size:1.9rem;font-weight:700;
+      letter-spacing:0.18em;color:var(--gold);
+    }
+    header p{font-size:0.7rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--muted);margin-top:4px;}
+
+    /* STATUS BAR */
+    #status-bar{
+      display:flex;gap:10px;flex-wrap:wrap;justify-content:center;
+      margin-bottom:22px;
+    }
+    .badge{
+      font-size:0.72rem;letter-spacing:0.06em;padding:5px 14px;
+      border-radius:999px;border:1px solid var(--border);
+      background:rgba(255,255,255,0.04);color:var(--muted);
+      transition:all .3s;
+    }
+    .badge.ok{border-color:rgba(34,197,94,0.5);color:#86efac;background:rgba(34,197,94,0.10);}
+    .badge.warn{border-color:rgba(239,68,68,0.5);color:#fca5a5;background:rgba(239,68,68,0.10);}
+
+    /* GRID */
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+    @media(max-width:900px){.grid{grid-template-columns:1fr;}}
+
+    .panel{
+      background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:20px;
+    }
+    .panel-title{
+      font-family:'Playfair Display',serif;
+      color:var(--gold);font-size:1.1rem;font-weight:700;
+      margin-bottom:16px;padding-bottom:10px;
+      border-bottom:1px solid var(--border);
+      display:flex;align-items:center;gap:8px;
+    }
+    .panel-actions{
+      display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;
+    }
+    .btn-link-panel{
+      display:inline-flex;align-items:center;justify-content:center;
+      text-decoration:none;
+      background:rgba(59,130,246,0.18);color:#bfdbfe;
+      border:1px solid rgba(59,130,246,0.45);
+      border-radius:6px;padding:8px 10px;
+      font-size:0.8rem;font-weight:600;
+      cursor:pointer;transition:all .2s;
+    }
+    .btn-link-panel:hover{background:rgba(59,130,246,0.28);}
+    .sel-filter{
+      min-width:180px;
+      background:var(--bg);color:var(--fg);
+      border:1px solid var(--border);
+      border-radius:6px;padding:8px 10px;
+      font-family:'Outfit',sans-serif;font-size:0.82rem;
+      outline:none;
+    }
+    .sel-filter:focus{border-color:var(--gold);}
+    .count{
+      background:var(--gold);color:#050505;
+      font-family:'Outfit',sans-serif;font-size:0.72rem;
+      font-weight:700;padding:2px 7px;border-radius:999px;
+    }
+
+    /* TARJETA CLIENTE */
+    .tarjeta{
+      background:var(--card2);
+      border:1px solid var(--border);
+      border-left:4px solid var(--gold);
+      border-radius:8px;padding:14px;
+      margin-bottom:12px;
+    }
+    .tarjeta p{font-size:0.85rem;color:var(--muted);margin:3px 0;}
+    .tarjeta p b{color:var(--fg);}
+    .tarjeta .precio{
+      font-family:'Playfair Display',serif;
+      font-size:1.4rem;font-weight:700;color:var(--gold);
+      margin:8px 0;
+    }
+    .tarjeta hr{border:none;border-top:1px solid var(--border);margin:10px 0;}
+
+    .assign-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    .assign-row label{font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);}
+    select.sel-chofer{
+      flex:1;min-width:140px;
+      background:var(--bg);color:var(--fg);
+      border:1px solid var(--border);
+      padding:8px 10px;border-radius:6px;
+      font-family:'Outfit',sans-serif;font-size:0.85rem;
+      outline:none;transition:border-color .2s;
+      cursor:pointer;
+    }
+    select.sel-chofer:focus{border-color:var(--gold);}
+    select.sel-chofer option{background:#1a1a1a;}
+
+    .btn-despachar{
+      background:var(--gold);color:#050505;
+      border:none;padding:9px 16px;border-radius:6px;
+      font-family:'Outfit',sans-serif;font-size:0.875rem;
+      font-weight:700;cursor:pointer;
+      transition:background .2s;white-space:nowrap;
+    }
+    .btn-despachar:hover{background:var(--gold-hover);}
+    .btn-despachar:disabled{opacity:0.45;cursor:not-allowed;}
+
+    /* TARJETA CHOFER */
+    .chofer-card{
+      background:var(--card2);
+      border:1px solid var(--border);
+      border-radius:8px;padding:14px;
+      margin-bottom:10px;
+      display:flex;align-items:center;gap:12px;
+    }
+    .chofer-avatar{
+      width:42px;height:42px;border-radius:50%;
+      background:rgba(212,175,55,0.15);
+      border:2px solid var(--gold);
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.2rem;flex-shrink:0;
+    }
+    .chofer-info{flex:1;}
+    .chofer-nombre{font-weight:600;font-size:0.95rem;}
+    .chofer-id{font-size:0.72rem;color:var(--muted);}
+    .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;}
+    .dot.libre{background:var(--green);}
+    .dot.ocupado{background:var(--red);}
+    .dot.desconectado{background:var(--muted);}
+    .chofer-estado{font-size:0.78rem;margin-top:3px;}
+    .chofer-hotel{font-size:0.75rem;color:#fde68a;margin-top:4px;}
+    .viaje-actual{
+      font-size:0.75rem;color:var(--muted);
+      margin-top:4px;max-width:200px;white-space:nowrap;
+      overflow:hidden;text-overflow:ellipsis;
+    }
+    .chofer-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+    .btn-small{
+      background:rgba(212,175,55,0.16);color:var(--gold);
+      border:1px solid rgba(212,175,55,0.45);
+      border-radius:6px;padding:6px 10px;
+      font-size:0.75rem;font-weight:600;cursor:pointer;
+      transition:all .2s;
+    }
+    .btn-small:hover{background:rgba(212,175,55,0.26);}
+
+    .monitor-panel{margin-top:20px;}
+    #map-choferes{height:420px;border-radius:10px;border:1px solid var(--border);background:#111;}
+
+    /* MENSAJES VACÍOS */
+    .empty{
+      text-align:center;padding:30px 10px;
+      color:var(--muted);font-size:0.9rem;
+    }
+    .empty span{font-size:2rem;display:block;margin-bottom:8px;}
+
+    /* TOAST */
+    #toast{
+      position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);
+      background:#1e1e1e;border:1px solid var(--gold);
+      color:var(--gold);padding:12px 24px;border-radius:8px;
+      font-size:0.9rem;font-weight:600;
+      opacity:0;transition:opacity .3s,transform .3s;
+      pointer-events:none;z-index:9999;white-space:nowrap;
+    }
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+    #toast.error{border-color:var(--red);color:#fca5a5;}
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🛰️ LUXRIDES — CENTRAL DE DESPACHO</h1>
+  <p>Solo el despachador puede asignar viajes</p>
+</header>
+
+<div id="status-bar">
+  <span id="badge-fb" class="badge">Firebase: iniciando…</span>
+  <span id="badge-pendientes" class="badge">Pendientes: —</span>
+  <span id="badge-choferes" class="badge">Choferes: —</span>
+</div>
+
+<div class="grid">
+
+  <!-- CLIENTES ESPERANDO -->
+  <div class="panel">
+    <div class="panel-title">
+      📱 Clientes Esperando
+      <span class="count" id="cnt-clientes">0</span>
+    </div>
+    <div id="lista-clientes">
+      <div class="empty"><span>⏳</span>Conectando con Firebase…</div>
+    </div>
+  </div>
+
+  <!-- CHOFERES -->
+  <div class="panel">
+    <div class="panel-title">
+      🚕 Flota de Choferes
+      <span class="count" id="cnt-choferes">0</span>
+    </div>
+    <div class="panel-actions">
+      <a class="btn-link-panel" href="./luxrides-choferes-admin.html" target="_blank" rel="noopener noreferrer">➕ Agregar IDs de chofer (nueva pestaña)</a>
+      <select id="filtro-hotel" class="sel-filter" onchange="aplicarFiltroHotel(this.value)">
+        <option value="TODOS">🏨 Todos los hoteles</option>
+      </select>
+    </div>
+    <div id="lista-choferes">
+      <div class="empty"><span>📡</span>Monitoreando flota…</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="panel monitor-panel">
+  <div class="panel-title">🗺️ Mapa de Clientes y Choferes</div>
+  <div id="map-choferes"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  FIREBASE — misma config que luxrides-3.7.html
+// ─────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDlzuMEutA5yDZLpRG62WEuxBQmi6y_tq0",
+  authDomain: "luxridesreservas-d5102.firebaseapp.com",
+  databaseURL: "https://luxridesreservas-d5102-default-rtdb.firebaseio.com",
+  projectId: "luxridesreservas-d5102",
+  storageBucket: "luxridesreservas-d5102.firebasestorage.app",
+  messagingSenderId: "731425344327",
+  appId: "1:731425344327:web:3ef04d1320750cd6e6da62",
+  measurementId: "G-WM9QYXYKTX"
+};
+
+// ─────────────────────────────────────────────────────────────
+//  CARGA DINÁMICA DE SCRIPTS (igual que 3.7)
+// ─────────────────────────────────────────────────────────────
+const loadScript = (src) => new Promise((res, rej) => {
+  const s = document.createElement('script');
+  s.src = src;
+  s.onload = res;
+  s.onerror = () => rej(new Error('No se pudo cargar: ' + src));
+  document.head.appendChild(s);
+});
+
+let db = null;
+// Estado local de choferes para poblar selects
+let choferesDisponibles = {};
+let choferesLista = [];
+let filtroHotelActivo = 'TODOS';
+let mapChoferes = null;
+const choferMapMarkers = {};
+const clienteMapMarkers = {};
+const clienteChoferLineas = {};
+const geocoderPendiente = new Set();
+const geocoderCache = {};
+let reservasActivasMapa = {};
+const GOOGLE_MAPS_API_KEY = 'AIzaSyB4R4P2AkHkhri6A7D7aIsWN-jswG19Y6o';
+
+function normalizeChoferId(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  return /^\d+$/.test(raw) ? raw.padStart(3, '0') : raw.toUpperCase();
+}
+
+async function asegurarChoferCanonico(value) {
+  const rawId = String(value || '').trim();
+  const canonicalId = normalizeChoferId(rawId);
+  if (!rawId || !canonicalId || rawId === canonicalId) return canonicalId;
+
+  const sourceChoferSnap = await db.ref('choferes/' + rawId).once('value');
+  const targetChoferSnap = await db.ref('choferes/' + canonicalId).once('value');
+
+  if (sourceChoferSnap.exists()) {
+    await db.ref('choferes/' + canonicalId).update({
+      ...(sourceChoferSnap.val() || {}),
+      ...(targetChoferSnap.val() || {}),
+      id_canonico: canonicalId,
+      id_legado: rawId
+    });
+  }
+
+  for (const rama of ['viajes', 'historial']) {
+    const sourceSnap = await db.ref(rama + '/' + rawId).once('value');
+    if (!sourceSnap.exists()) continue;
+    await db.ref(rama + '/' + canonicalId).update(sourceSnap.val() || {});
+    await db.ref(rama + '/' + rawId).remove();
+  }
+
+  if (sourceChoferSnap.exists()) {
+    await db.ref('choferes/' + rawId).remove();
+  }
+
+  return canonicalId;
+}
+
+const initFirebase = (async () => {
+  try {
+    await loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
+    await loadScript("https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js");
+
+    if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+
+    db = firebase.database();
+    setBadge('badge-fb', 'ok', 'Firebase: activo ✓');
+    await cargarMapaChoferes();
+    iniciarListeners();
+  } catch (err) {
+    console.error(err);
+    setBadge('badge-fb', 'warn', 'Firebase: error ✗');
+    document.getElementById('lista-clientes').innerHTML =
+      '<div class="empty"><span>❌</span>No se pudo conectar con Firebase.</div>';
+  }
+})();
+
+// ─────────────────────────────────────────────────────────────
+//  LISTENERS REALTIME
+// ─────────────────────────────────────────────────────────────
+function iniciarListeners() {
+  // 1. RESERVAS (donde luxrides-3.7 guarda los pedidos de clientes)
+  //    Solo el despachador lee esto; los clientes y choferes NO tienen acceso.
+  db.ref('reservas').on('value', snap => {
+    const div = document.getElementById('lista-clientes');
+    div.innerHTML = '';
+    let count = 0;
+    reservasActivasMapa = {};
+
+    snap.forEach(child => {
+      const r = child.val();
+      const estadoNormalizado = String(r.estado || '').toLowerCase();
+      if (!['pendiente', 'asignado', 'en curso', 'en_curso'].includes(estadoNormalizado)) {
+        quitarReservaDelMapa(child.key);
+        return;
+      }
+      reservasActivasMapa[child.key] = { id: child.key, ...r };
+      if (r.estado !== 'Pendiente') return;
+      count++;
+
+      const fecha = r.fecha || '—';
+      const hora  = r.hora_recogida || '—';
+      const pax   = r.pasajeros || 1;
+      const veh   = r.vehiculo || '—';
+      const svc   = r.servicio || '—';
+      const trasl = r.traslado || 'Normal';
+      const vlNum = r.numero_vuelo ? ` · Vuelo: ${r.numero_vuelo}` : '';
+      const avisoReasignacion = r.reasignacion_pendiente
+        ? `<p style="color:#fca5a5"><b>↻ Reasignación:</b> ${escHtml(r.reasignacion_motivo || 'Se buscará otro chofer.')}</p>`
+        : '';
+      const avisoReembolso = r.reembolso_automatico
+        ? `<p style="color:#86efac"><b>💸 Reembolso:</b> ${escHtml(r.reembolso_estado || 'registrado')}</p>`
+        : '';
+
+      div.innerHTML += `
+        <div class="tarjeta" id="tarjeta-${child.key}">
+          <p><b>👤 ${escHtml(r.cliente || 'Sin nombre')}</b></p>
+          <p>📍 <b>${escHtml(r.origen)}</b>${r.destino && r.destino !== 'Por tiempo' ? ' ➔ <b>' + escHtml(r.destino) + '</b>' : ''}</p>
+          <p>📅 ${fecha} · ⏰ ${hora}</p>
+          <p>🚘 ${escHtml(veh)} · 👥 ${pax} pax · ${escHtml(svc)} · ${escHtml(trasl)}${escHtml(vlNum)}</p>
+          ${r.distancia_km ? `<p>📏 ${r.distancia_km} km · ⏱️ ${r.duracion_min} min</p>` : ''}
+          ${avisoReasignacion}
+          ${avisoReembolso}
+          <div class="precio">$${Number(r.total||0).toLocaleString('es-MX')} MXN</div>
+          <hr>
+          <div class="assign-row">
+            <label>Asignar a:</label>
+            <select class="sel-chofer" id="sel-${child.key}">
+              <option value="">— Seleccionar chofer —</option>
+            </select>
+            <button class="btn-despachar" onclick="despachar('${child.key}')">ENVIAR 🚀</button>
+          </div>
+        </div>`;
+
+      // Populate select with current drivers
+      const sel = document.getElementById(`sel-${child.key}`);
+      if (sel) poblarSelect(sel);
+    });
+
+    document.getElementById('cnt-clientes').textContent = count;
+    setBadge('badge-pendientes', count > 0 ? 'warn' : 'ok',
+      `Pendientes: ${count}`);
+
+    if (count === 0) {
+      div.innerHTML = '<div class="empty"><span>✅</span>Sin solicitudes pendientes</div>';
+    }
+
+    actualizarMapaChoferes();
+  });
+
+  // 2. CHOFERES
+  db.ref('choferes').on('value', snap => {
+    choferesDisponibles = {};
+    choferesLista = [];
+
+    snap.forEach(child => {
+      const ch = child.val();
+      const id     = normalizeChoferId(child.key);
+      const nombre = ch.nombre || id;
+      const estado = ch.estado || 'Desconectado';
+      const hotel  = ch.hotel || '';
+      const ubicacion = ch.ubicacion || null;
+      choferesDisponibles[id] = {
+        ...(choferesDisponibles[id] || {}),
+        nombre,
+        estado,
+        hotel,
+        ubicacion,
+        viajeActual: ch.viajeActual || null
+      };
+    });
+
+    choferesLista = Object.entries(choferesDisponibles).map(([id, ch]) => ({
+      id,
+      nombre: ch.nombre || id,
+      estado: ch.estado || 'Desconectado',
+      hotel: ch.hotel || '',
+      ubicacion: ch.ubicacion || null,
+      viajeActual: ch.viajeActual || null
+    }));
+
+    refrescarOpcionesHoteles();
+    renderizarChoferes();
+    actualizarMapaChoferes();
+
+    // Actualizar todos los selects abiertos
+    document.querySelectorAll('.sel-chofer').forEach(sel => poblarSelect(sel));
+  });
+}
+
+function renderizarChoferes() {
+  const div = document.getElementById('lista-choferes');
+  div.innerHTML = '';
+
+  const filtrados = choferesLista.filter(ch => {
+    if (filtroHotelActivo === 'TODOS') return true;
+    return (ch.hotel || 'Sin asignar') === filtroHotelActivo;
+  });
+
+  filtrados.forEach(ch => {
+    const dotClass = ch.estado.toLowerCase().includes('libre') ? 'libre'
+                   : ch.estado.toLowerCase().includes('ocupado') ? 'ocupado'
+                   : 'desconectado';
+
+    div.innerHTML += `
+      <div class="chofer-card">
+        <div class="chofer-avatar">🚗</div>
+        <div class="chofer-info">
+          <div class="chofer-nombre">${escHtml(ch.nombre)}</div>
+          <div class="chofer-id">ID: ${escHtml(ch.id)}</div>
+          <div class="chofer-estado">
+            <span class="dot ${dotClass}"></span>${escHtml(ch.estado)}
+          </div>
+          <div class="chofer-hotel">🏨 Hotel: <b>${escHtml(ch.hotel || 'Sin asignar')}</b></div>
+          ${ch.viajeActual ? `<div class="viaje-actual">🗺️ ${escHtml(ch.viajeActual)}</div>` : ''}
+          <div class="chofer-actions">
+            <button class="btn-small" onclick="asignarHotel('${ch.id}')">🏨 Asignar hotel</button>
+          </div>
+        </div>
+      </div>`;
+  });
+
+  const total = choferesLista.length;
+  const visibles = filtrados.length;
+  document.getElementById('cnt-choferes').textContent = visibles;
+  setBadge('badge-choferes', total > 0 ? 'ok' : 'warn', `Choferes: ${visibles}/${total}`);
+
+  if (visibles === 0) {
+    div.innerHTML = '<div class="empty"><span>🏨</span>No hay choferes para este hotel</div>';
+  }
+}
+
+function refrescarOpcionesHoteles() {
+  const sel = document.getElementById('filtro-hotel');
+  const anterior = filtroHotelActivo;
+  const hoteles = new Set();
+  choferesLista.forEach(ch => hoteles.add(ch.hotel || 'Sin asignar'));
+
+  sel.innerHTML = '<option value="TODOS">🏨 Todos los hoteles</option>';
+  Array.from(hoteles).sort((a, b) => a.localeCompare(b, 'es')).forEach(hotel => {
+    const opt = document.createElement('option');
+    opt.value = hotel;
+    opt.textContent = `🏨 ${hotel}`;
+    sel.appendChild(opt);
+  });
+
+  const existe = Array.from(sel.options).some(opt => opt.value === anterior);
+  filtroHotelActivo = existe ? anterior : 'TODOS';
+  sel.value = filtroHotelActivo;
+}
+
+function aplicarFiltroHotel(valor) {
+  filtroHotelActivo = valor || 'TODOS';
+  renderizarChoferes();
+}
+
+async function cargarMapaChoferes() {
+  if (window.google && google.maps) {
+    initMapaChoferes();
+    return;
+  }
+
+  await new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('No se pudo cargar Google Maps'));
+    document.head.appendChild(script);
+  });
+
+  initMapaChoferes();
+}
+
+function initMapaChoferes() {
+  if (mapChoferes || !(window.google && google.maps)) return;
+  mapChoferes = new google.maps.Map(document.getElementById('map-choferes'), {
+    center: { lat: 19.4326, lng: -99.1332 },
+    zoom: 11,
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: true
+  });
+}
+
+function crearIconoCliente() {
+  return {
+    path: google.maps.SymbolPath.CIRCLE,
+    scale: 9,
+    fillColor: '#EF4444',
+    fillOpacity: 1,
+    strokeColor: '#7f1d1d',
+    strokeWeight: 1.6
+  };
+}
+
+function crearIconoChofer(color) {
+  return {
+    path: google.maps.SymbolPath.CIRCLE,
+    scale: 8,
+    fillColor: color,
+    fillOpacity: 1,
+    strokeColor: '#0f172a',
+    strokeWeight: 1.4
+  };
+}
+
+function obtenerPosicionCliente(reservaId, reserva) {
+  const lat = Number(reserva?.origen_lat);
+  const lng = Number(reserva?.origen_lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return Promise.resolve({ lat, lng });
+  }
+
+  const cacheKey = reservaId || reserva?.origen || '';
+  if (geocoderCache[cacheKey]) return Promise.resolve(geocoderCache[cacheKey]);
+  if (geocoderPendiente.has(cacheKey) || !reserva?.origen || !(window.google && google.maps && google.maps.Geocoder)) {
+    return Promise.resolve(null);
+  }
+
+  geocoderPendiente.add(cacheKey);
+  const geocoder = new google.maps.Geocoder();
+  return new Promise((resolve) => {
+    geocoder.geocode({ address: reserva.origen, region: 'mx' }, (results, status) => {
+      geocoderPendiente.delete(cacheKey);
+      if (status === 'OK' && results && results[0]?.geometry?.location) {
+        const pos = {
+          lat: results[0].geometry.location.lat(),
+          lng: results[0].geometry.location.lng()
+        };
+        geocoderCache[cacheKey] = pos;
+        resolve(pos);
+        setTimeout(() => actualizarMapaChoferes(), 0);
+        return;
+      }
+      resolve(null);
+    });
+  });
+}
+
+function limpiarMarcadoresInactivos(collection, activos) {
+  Object.keys(collection).forEach((id) => {
+    if (activos.has(id)) return;
+    collection[id].setMap(null);
+    delete collection[id];
+  });
+}
+
+function limpiarLineasInactivas(activos) {
+  Object.keys(clienteChoferLineas).forEach((id) => {
+    if (activos.has(id)) return;
+    clienteChoferLineas[id].setMap(null);
+    delete clienteChoferLineas[id];
+  });
+}
+
+function quitarReservaDelMapa(reservaId) {
+  if (clienteMapMarkers[reservaId]) {
+    clienteMapMarkers[reservaId].setMap(null);
+    delete clienteMapMarkers[reservaId];
+  }
+  if (clienteChoferLineas[reservaId]) {
+    clienteChoferLineas[reservaId].setMap(null);
+    delete clienteChoferLineas[reservaId];
+  }
+}
+
+async function actualizarMapaChoferes() {
+  if (!mapChoferes || !(window.google && google.maps)) return;
+
+  const bounds = new google.maps.LatLngBounds();
+  let visibles = 0;
+  const choferesActivos = new Set();
+  const clientesActivos = new Set();
+  const lineasActivas = new Set();
+
+  choferesLista.forEach((ch) => {
+    const lat = Number(ch.ubicacion?.lat);
+    const lng = Number(ch.ubicacion?.lng);
+    const online = /en linea|ocupado|libre/i.test((ch.estado || '').toLowerCase());
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !online) return;
+
+    const pos = { lat, lng };
+    const title = `Chofer ${ch.id} · ${ch.nombre}`;
+    const color = String(ch.estado || '').toLowerCase().includes('ocupado') ? '#F59E0B' : '#22C55E';
+    const icon = crearIconoChofer(color);
+
+    if (!choferMapMarkers[ch.id]) {
+      choferMapMarkers[ch.id] = new google.maps.Marker({
+        map: mapChoferes,
+        position: pos,
+        title,
+        icon,
+        label: {
+          text: `${ch.id} · ${ch.nombre}`,
+          color: '#f8fafc',
+          fontSize: '11px',
+          fontWeight: '700'
+        }
+      });
+    } else {
+      choferMapMarkers[ch.id].setPosition(pos);
+      choferMapMarkers[ch.id].setTitle(title);
+      choferMapMarkers[ch.id].setIcon(icon);
+      choferMapMarkers[ch.id].setLabel({ text: `${ch.id} · ${ch.nombre}`, color: '#f8fafc', fontSize: '11px', fontWeight: '700' });
+      choferMapMarkers[ch.id].setMap(mapChoferes);
+    }
+
+    choferesActivos.add(ch.id);
+    bounds.extend(pos);
+    visibles++;
+  });
+
+  const clientesResueltos = await Promise.all(Object.entries(reservasActivasMapa).map(async ([reservaId, reserva]) => {
+    const pos = await obtenerPosicionCliente(reservaId, reserva);
+    return { reservaId, reserva, pos };
+  }));
+
+  clientesResueltos.forEach(({ reservaId, reserva, pos }) => {
+    if (!pos) return;
+    const clienteNombre = String(reserva.cliente || 'Cliente');
+    const title = `Cliente · ${clienteNombre}`;
+
+    if (!clienteMapMarkers[reservaId]) {
+      clienteMapMarkers[reservaId] = new google.maps.Marker({
+        map: mapChoferes,
+        position: pos,
+        title,
+        icon: crearIconoCliente(),
+        label: {
+          text: clienteNombre,
+          color: '#FCA5A5',
+          fontSize: '11px',
+          fontWeight: '700'
+        }
+      });
+    } else {
+      clienteMapMarkers[reservaId].setPosition(pos);
+      clienteMapMarkers[reservaId].setTitle(title);
+      clienteMapMarkers[reservaId].setIcon(crearIconoCliente());
+      clienteMapMarkers[reservaId].setLabel({ text: clienteNombre, color: '#FCA5A5', fontSize: '11px', fontWeight: '700' });
+      clienteMapMarkers[reservaId].setMap(mapChoferes);
+    }
+
+    clientesActivos.add(reservaId);
+    bounds.extend(pos);
+    visibles++;
+
+    if (reserva.chofer_id && choferMapMarkers[reserva.chofer_id]) {
+      const choferPos = choferMapMarkers[reserva.chofer_id].getPosition();
+      bounds.extend(choferPos);
+
+      const linePath = [pos, { lat: choferPos.lat(), lng: choferPos.lng() }];
+      const lineaColor = reserva.reasignacion_pendiente ? '#EF4444' : '#60A5FA';
+      if (!clienteChoferLineas[reservaId]) {
+        clienteChoferLineas[reservaId] = new google.maps.Polyline({
+          map: mapChoferes,
+          path: linePath,
+          geodesic: true,
+          strokeColor: lineaColor,
+          strokeOpacity: 0.85,
+          strokeWeight: 2.5,
+          icons: [{
+            icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 },
+            offset: '0',
+            repeat: '12px'
+          }]
+        });
+      } else {
+        clienteChoferLineas[reservaId].setPath(linePath);
+        clienteChoferLineas[reservaId].setOptions({ strokeColor: lineaColor });
+        clienteChoferLineas[reservaId].setMap(mapChoferes);
+      }
+      lineasActivas.add(reservaId);
+    }
+  });
+
+  limpiarMarcadoresInactivos(choferMapMarkers, choferesActivos);
+  limpiarMarcadoresInactivos(clienteMapMarkers, clientesActivos);
+  limpiarLineasInactivas(lineasActivas);
+
+  if (visibles > 0) {
+    mapChoferes.fitBounds(bounds);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  POBLAR SELECT DE UN CHOFER
+// ─────────────────────────────────────────────────────────────
+function poblarSelect(sel) {
+  const valorActual = sel.value;
+  sel.innerHTML = '<option value="">— Seleccionar chofer —</option>';
+  Object.entries(choferesDisponibles).forEach(([id, ch]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = `${ch.nombre} (${ch.estado})`;
+    if (id === valorActual) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  // Si no hay choferes en Firebase, añadir IDs por defecto
+  if (Object.keys(choferesDisponibles).length === 0) {
+    ['001','002','003'].forEach(id => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = `Chofer ${id}`;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  DESPACHAR — SOLO EL PANEL HACE ESTO
+// ─────────────────────────────────────────────────────────────
+async function despachar(reservaID) {
+  const sel = document.getElementById(`sel-${reservaID}`);
+  if (!sel || !sel.value) {
+    showToast('⚠️ Selecciona un chofer primero.', true);
+    return;
+  }
+  const choferID = await asegurarChoferCanonico(sel.value);
+  const btn = sel.closest('.tarjeta').querySelector('.btn-despachar');
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+
+  try {
+    const snap = await db.ref('reservas/' + reservaID).once('value');
+    const datosViaje = snap.val();
+    if (!datosViaje) throw new Error('Reserva no encontrada');
+
+    const choferNombre = choferesDisponibles[choferID]?.nombre || `Chofer ${choferID}`;
+
+    // 1. Crear el viaje en la carpeta del chofer
+    await db.ref('viajes/' + choferID).push({
+      ...datosViaje,
+      estado: 'pendiente',
+      despachado_en: new Date().toISOString(),
+      reserva_id: reservaID
+    });
+
+    // 2. Marcar la reserva como Asignada (el panel no la borra, solo la marca)
+    await db.ref('reservas/' + reservaID).update({
+      estado: 'Asignado',
+      chofer_asignado: choferID,
+      chofer_nombre: choferNombre,
+        chofer_id: choferID,
+        chofer_ubicacion_aceptacion: null,
+        reasignacion_pendiente: false,
+        reasignacion_motivo: '',
+        reembolso_automatico: false,
+        reembolso_estado: '',
+        asignado_en: new Date().toISOString()
+    });
+
+    showToast(`✅ Viaje enviado a ${choferNombre}`);
+  } catch (err) {
+    console.error(err);
+    btn.disabled = false;
+    btn.textContent = 'ENVIAR 🚀';
+    showToast('❌ Error al despachar: ' + err.message, true);
+  }
+}
+
+async function asignarHotel(choferID) {
+  choferID = await asegurarChoferCanonico(choferID);
+  const actual = choferesDisponibles[choferID]?.hotel || '';
+  const nuevoHotel = window.prompt(`Hotel para chofer ${choferID}:`, actual);
+  if (nuevoHotel === null) return;
+  const hotelLimpio = nuevoHotel.trim();
+  if (!hotelLimpio) {
+    showToast('⚠️ Escribe un hotel válido.', true);
+    return;
+  }
+
+  try {
+    await db.ref('choferes/' + choferID).update({
+      hotel: hotelLimpio,
+      hotel_actualizado_en: new Date().toISOString()
+    });
+    showToast(`🏨 Hotel guardado para chofer ${choferID}`);
+  } catch (err) {
+    console.error(err);
+    showToast('❌ No se pudo guardar hotel: ' + err.message, true);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────────────────────
+function setBadge(id, type, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'badge ' + type;
+  el.textContent = text;
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+let toastTimer = null;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast'; }, 3500);
+}
+</script>
+
+</body>
+</html>

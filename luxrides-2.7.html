@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LuxRides 2.7 VIP</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --gold:#D4AF37;--gold-hover:#F3E5AB;--green:#22C55E;--red:#EF4444;
+  --bg:#050505;--card:#111111;--border:rgba(255,255,255,0.1);
+  --fg:#ffffff;--muted:rgba(255,255,255,0.45);--glass:rgba(10,10,10,0.88);
+}
+body{background:var(--bg);color:var(--fg);font-family:'Outfit',sans-serif;height:100vh;overflow:hidden;}
+#map{position:fixed;inset:0;z-index:0;}
+#panel{
+  position:fixed;z-index:1000;
+  bottom:0;left:0;right:0;
+  max-height:75vh;border-radius:16px 16px 0 0;
+  background:var(--glass);backdrop-filter:blur(24px);
+  border:1px solid var(--border);border-bottom:none;
+  overflow-y:auto;overflow-x:hidden;
+  transition:max-height .3s ease;
+}
+@media(min-width:768px){
+  #panel{
+    top:24px;bottom:auto;left:24px;right:auto;
+    width:420px;max-height:calc(100vh - 48px);
+    border-radius:0;border:1px solid var(--border);
+  }
+}
+#panel::-webkit-scrollbar{width:5px;}
+#panel::-webkit-scrollbar-track{background:transparent;}
+#panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px;}
+.inner{padding:24px;}
+@media(min-width:768px){.inner{padding:28px;}}
+.drag-handle{display:block;width:40px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:10px auto 0;}
+@media(min-width:768px){.drag-handle{display:none;}}
+.brand{text-align:center;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);}
+.brand h1{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;letter-spacing:0.2em;color:var(--gold);}
+.brand p{font-size:0.7rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+label.lbl{display:block;font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-weight:500;}
+.field{margin-bottom:12px;position:relative;}
+.icon-wrap{position:relative;display:flex;align-items:center;}
+.icon-wrap .ico{position:absolute;left:10px;pointer-events:none;font-size:15px;}
+input[type=text],select,button{
+  width:100%;padding:12px 12px 12px 36px;
+  background:rgba(255,255,255,0.03);border:1px solid var(--border);
+  color:var(--fg);font-family:'Outfit',sans-serif;font-size:0.95rem;
+  outline:none;transition:border-color .2s,box-shadow .2s;
+}
+input[type=text]::placeholder{color:rgba(255,255,255,0.25);}
+input:focus,select:focus,button:focus{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold);}
+select{padding-left:12px;padding-right:12px;}
+.btn-row{display:grid;gap:10px;margin-top:6px;}
+.btn-toggle{
+  width:100%;padding:14px;border:1px solid var(--border);
+  background:var(--gold);color:#050505;font-family:'Outfit',sans-serif;font-size:0.95rem;cursor:pointer;
+  transition:background .2s;
+}
+.btn-toggle:hover{background:var(--gold-hover);}
+.tag-row{display:flex;align-items:center;justify-content:space-between;padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);margin-bottom:12px;}
+.tag-label{display:flex;align-items:center;gap:10px;font-size:0.875rem;color:var(--fg);}
+.switch{position:relative;width:46px;height:26px;border-radius:999px;border:none;cursor:pointer;transition:background .2s;background:rgba(255,255,255,0.1);}
+.switch.on{background:var(--gold);}
+.switch-thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:left .2s;}
+.switch.on .switch-thumb{left:23px;}
+.route-box{background:linear-gradient(135deg,rgba(34,197,94,0.15),rgba(34,197,94,0.05));border:1px solid var(--green);padding:12px;margin-bottom:12px;text-align:center;}
+.route-label{font-size:0.68rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--green);margin-bottom:8px;}
+.route-nums{display:flex;justify-content:center;gap:32px;}
+.route-num{font-size:1.5rem;font-weight:700;color:var(--fg);}
+.route-sub{font-size:0.68rem;text-transform:uppercase;color:var(--muted);}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.info-cell{padding:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);}
+.info-cell-lbl{font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+.info-cell-val{font-size:1.1rem;font-weight:600;}
+.error-msg{background:rgba(239,68,68,0.12);border:1px solid var(--red);color:#fca5a5;padding:10px 12px;margin-top:8px;font-size:0.85rem;display:none;border-radius:2px;}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+  <div class="drag-handle"></div>
+  <div class="inner">
+    <div class="brand">
+      <h1>LUXRIDES 2.7</h1>
+      <p>Transporte Ejecutivo VIP</p>
+    </div>
+
+    <div class="field">
+      <label class="lbl">Origen</label>
+      <div class="icon-wrap">
+        <span class="ico">📍</span>
+        <input type="text" id="inp-origen" placeholder="Ej: Polanco, Ciudad de México" autocomplete="off"/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="lbl">Destino</label>
+      <div class="icon-wrap">
+        <span class="ico">🏁</span>
+        <input type="text" id="inp-destino" placeholder="Ej: Aeropuerto CDMX" autocomplete="off"/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="lbl">Modo de viaje</label>
+      <select id="travel-mode">
+        <option value="DRIVING">Conducción</option>
+        <option value="WALKING">A pie</option>
+        <option value="BICYCLING">Bicicleta</option>
+        <option value="TRANSIT">Transporte público</option>
+      </select>
+    </div>
+
+    <div class="btn-row">
+      <button id="btn-route" class="btn-toggle">Mostrar ruta</button>
+      <button id="btn-open-google" class="btn-toggle" style="background:#111;color:#f5f5f5;border-color:rgba(255,255,255,0.12);">Abrir en Google Maps</button>
+    </div>
+
+    <div class="tag-row">
+      <div class="tag-label"><span style="color:var(--gold)">🚦</span> Google Maps</div>
+      <button class="switch on" id="switch-tag"><span class="switch-thumb"></span></button>
+    </div>
+
+    <div class="route-box">
+      <div class="route-label">DISTANCIA</div>
+      <div class="route-nums">
+        <div>
+          <div class="route-num" id="r-km">--</div>
+          <div class="route-sub">km</div>
+        </div>
+        <div>
+          <div class="route-num" id="r-min">--</div>
+          <div class="route-sub">min</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-cell">
+        <div class="info-cell-lbl">Estado</div>
+        <div class="info-cell-val" id="r-status">Sin cálculo</div>
+      </div>
+      <div class="info-cell">
+        <div class="info-cell-lbl">Tráfico</div>
+        <div class="info-cell-val" id="r-traffic">Activado</div>
+      </div>
+    </div>
+
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+</div>
+<script>
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCMAnSmeUm3eSDKRANdJBo-5s0WgwXvV8Y';
+let map;
+let directionsService;
+let directionsRenderer;
+let trafficLayer;
+let currentRouteUrl = '';
+let trafficEnabled = true;
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: { lat: 19.4326, lng: -99.1332 },
+    zoom: 12,
+    mapTypeControl: false,
+    fullscreenControl: false,
+    streetViewControl: false,
+    zoomControl: true,
+  });
+
+  directionsService = new google.maps.DirectionsService();
+  directionsRenderer = new google.maps.DirectionsRenderer({ map });
+  trafficLayer = new google.maps.TrafficLayer();
+  trafficLayer.setMap(map);
+
+  document.getElementById('btn-route').addEventListener('click', calcularRuta);
+  document.getElementById('btn-open-google').addEventListener('click', abrirEnGoogleMaps);
+  document.getElementById('switch-tag').addEventListener('click', toggleTraffic);
+}
+
+function mostrarError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function ocultarError() {
+  const el = document.getElementById('error-msg');
+  el.style.display = 'none';
+}
+
+function calcularRuta() {
+  ocultarError();
+  const origen = document.getElementById('inp-origen').value.trim();
+  const destino = document.getElementById('inp-destino').value.trim();
+  const travelMode = document.getElementById('travel-mode').value;
+
+  if (!origen || !destino) {
+    mostrarError('Por favor ingresa origen y destino.');
+    return;
+  }
+
+  directionsService.route({
+    origin: origen,
+    destination: destino,
+    travelMode: google.maps.TravelMode[travelMode],
+    drivingOptions: {
+      departureTime: new Date(),
+      trafficModel: 'bestguess'
+    },
+    unitSystem: google.maps.UnitSystem.METRIC,
+  }, (response, status) => {
+    if (status === 'OK') {
+      directionsRenderer.setDirections(response);
+      const route = response.routes[0].legs[0];
+      document.getElementById('r-km').textContent = route.distance.text;
+      document.getElementById('r-min').textContent = route.duration_in_traffic ? route.duration_in_traffic.text : route.duration.text;
+      document.getElementById('r-status').textContent = 'Ruta generada';
+      document.getElementById('r-status').style.color = '#22c55e';
+      document.getElementById('r-traffic').textContent = trafficEnabled ? 'Activado' : 'Desactivado';
+      currentRouteUrl = crearUrlGoogleMaps(origen, destino, travelMode);
+      map.fitBounds(response.routes[0].bounds);
+    } else {
+      mostrarError('Error al calcular ruta: ' + status);
+      document.getElementById('r-status').textContent = 'Error';
+      document.getElementById('r-status').style.color = '#ef4444';
+    }
+  });
+}
+
+function toggleTraffic() {
+  trafficEnabled = !trafficEnabled;
+  const switchBtn = document.getElementById('switch-tag');
+  switchBtn.classList.toggle('on', trafficEnabled);
+  if (trafficEnabled) {
+    trafficLayer.setMap(map);
+    document.getElementById('r-traffic').textContent = 'Activado';
+  } else {
+    trafficLayer.setMap(null);
+    document.getElementById('r-traffic').textContent = 'Desactivado';
+  }
+}
+
+function crearUrlGoogleMaps(origen, destino, travelMode) {
+  const mode = travelMode.toLowerCase();
+  return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origen)}&destination=${encodeURIComponent(destino)}&travelmode=${mode}${GOOGLE_MAPS_API_KEY ? '&key=' + GOOGLE_MAPS_API_KEY : ''}`;
+}
+
+function abrirEnGoogleMaps() {
+  if (!currentRouteUrl) {
+    mostrarError('Primero genera la ruta antes de abrir Google Maps.');
+    return;
+  }
+  window.open(currentRouteUrl, '_blank');
+}
+</script>
+</script><script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCMAnSmeUm3eSDKRANdJBo-5s0WgwXvV8Y&libraries=places&callback=initMap"></script>
+</body>
+</html>
