@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "concierjes": {
+      ".indexOn": ["nombre"]
+    },
+    "reservas": {
+      ".indexOn": ["concierge_code", "estado", "timestamp"]
+    },
+    ".read": "true",
+    ".write": "true"
+  }
+}
