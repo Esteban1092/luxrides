@@ -238,11 +238,24 @@ const loadScript = (src) => new Promise((resolve, reject) => {
 
   // Auto-login si hay sesión guardada
   const saved = sessionStorage.getItem('luxrides_concierge_session');
-  if (saved) {
+  if (saved && firebaseReady) {
     try {
       const data = JSON.parse(saved);
-      if (data && data.code) showDashboard(data.code);
-    } catch (_) {}
+      if (data && data.code) {
+        // Verificar que el concierge sigue existiendo y activo
+        const snap = await db.ref('concierges/' + data.code).once('value');
+        if (snap.exists() && snap.val().estado !== 'Inactivo') {
+          showDashboard(data.code);
+        } else {
+          sessionStorage.removeItem('luxrides_concierge_session');
+        }
+      }
+    } catch (_) {
+      sessionStorage.removeItem('luxrides_concierge_session');
+    }
+  } else if (saved && !firebaseReady) {
+    // Firebase no cargó, limpiar sesión para no dejar pantalla en blanco
+    sessionStorage.removeItem('luxrides_concierge_session');
   }
 })();
 
@@ -289,6 +302,14 @@ function logoutConcierge() {
 
 // ─── Dashboard ───
 async function showDashboard(code) {
+  if (!db) {
+    // Firebase no disponible, volver al login
+    sessionStorage.removeItem('luxrides_concierge_session');
+    document.getElementById('login-section').style.display = '';
+    document.getElementById('login-error').textContent = 'Error de conexión. Intenta de nuevo.';
+    return;
+  }
+
   document.getElementById('login-section').style.display = 'none';
   const dash = document.getElementById('dashboard');
   dash.style.display = '';
@@ -308,7 +329,7 @@ async function showDashboard(code) {
 
   // NFC URL
   const baseUrl = location.origin + location.pathname.replace(/[^/]*$/, '');
-  document.getElementById('nfc-url').textContent = baseUrl + 'luxrides-concierge.html?c=' + encodeURIComponent(code);
+  document.getElementById('nfc-url').textContent = baseUrl + 'consierges.html?c=' + encodeURIComponent(code);
 
   // Cargar comisiones en tiempo real
   loadCommissions(code);
