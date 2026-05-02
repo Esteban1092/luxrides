@@ -146,6 +146,9 @@ select{padding-left:12px;padding-right:12px;}
 .stripe-monto-cur{font-size:.85rem;color:#888;} 
 #stripe-card-element{padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;background:#fff;transition:border-color .2s;}
 #stripe-card-element.StripeElement--focus{border-color:#635bff;}
+.stripe-field{padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;background:#fff;transition:border-color .2s;}
+.stripe-field.StripeElement--focus{border-color:#635bff;}
+.stripe-field.StripeElement--invalid{border-color:#dc2626;}
 #stripe-card-error{color:#dc2626;font-size:.82rem;margin-top:8px;min-height:18px;}
 #btn-pagar-stripe{width:100%;margin-top:18px;padding:14px;background:#635bff;border:none;color:#fff;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:700;border-radius:8px;cursor:pointer;transition:background .2s;}
 #btn-pagar-stripe:hover:not(:disabled){background:#4b44d4;}
@@ -439,8 +442,18 @@ select{padding-left:12px;padding-right:12px;}
     </div>
     <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Ãdigo postal de facturación</label>
     <input id="stripe-cp" type="text" placeholder="Código postal" inputmode="numeric" maxlength="10" autocomplete="postal-code" style="width:100%;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;margin-bottom:12px;box-sizing:border-box;"/>
-    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Número de tarjeta, vencimiento y CVC</label>
-    <div id="stripe-card-element"></div>
+    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Número de tarjeta</label>
+    <div id="stripe-card-number" class="stripe-field" style="margin-bottom:12px;"></div>
+    <div style="display:flex;gap:10px;margin-bottom:12px;">
+      <div style="flex:1;">
+        <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">MM / AA</label>
+        <div id="stripe-card-expiry" class="stripe-field"></div>
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">CVV</label>
+        <div id="stripe-card-cvc" class="stripe-field"></div>
+      </div>
+    </div>
     <div id="stripe-card-error"></div>
     <button id="btn-pagar-stripe" onclick="procesarPagoStripe()">💳 Pagar ahora</button>
     <p class="stripe-ssl-note">🔒 Encriptado con SSL · Procesado por Stripe · Nunca almacenamos tu tarjeta</p>
@@ -539,7 +552,9 @@ window.GOOGLE_MAPS_API_KEY = GOOGLE_MAPS_API_KEY;
 const WHATSAPP_CENTRAL = '+525527729551';
 const STRIPE_PK = 'pk_live_51TSJFbRsMQje2ZkMG6tpwzSwf8HsmPkQmP45tH2wXb6CVEsa3sSJMPrFyDyPu4vVQH4OBOVDeMYYqitKLy3DJhfU00Fqd0xLIC';
 let stripeInstance = null;
-let stripeCardElement = null;
+let stripeCardElement = null;   // cardNumber element
+let stripeCardExpiry = null;
+let stripeCardCvc = null;
 let stripeMontoActual = 0;
 const CLIP_PAYMENT_URL = 'https://clip.mx/@Luxridesreservas.com';
 const FCM_VAPID_KEY = 'BHFqapvp0PyXQZTEQEKwIjDGt_KxIb2-gQ3Iu3uDNgz9fdrCH6T1ADyqvIbOSnwuoQEXs2KkB9_ZvUldqIGWpdQ';
@@ -1927,20 +1942,23 @@ async function abrirPagoStripe(){
     stripeInstance = Stripe(STRIPE_PK);
   }
 
-  // Montar card element solo una vez
+  // Montar elementos separados solo una vez
   if (!stripeCardElement) {
     const elements = stripeInstance.elements();
-    stripeCardElement = elements.create('card', {
-      hidePostalCode: true,
-      style: {
-        base: { fontSize: '16px', color: '#1a1a1a', fontFamily: "'Outfit', sans-serif", '::placeholder': { color: '#aab7c4' } },
-        invalid: { color: '#dc2626' }
-      }
-    });
-    stripeCardElement.mount('#stripe-card-element');
-    stripeCardElement.on('change', (e) => {
-      document.getElementById('stripe-card-error').textContent = e.error ? e.error.message : '';
-    });
+    const stripeStyle = {
+      base: { fontSize: '16px', color: '#1a1a1a', fontFamily: "'Outfit', sans-serif", '::placeholder': { color: '#aab7c4' } },
+      invalid: { color: '#dc2626' }
+    };
+    stripeCardElement     = elements.create('cardNumber', { style: stripeStyle, placeholder: '1234 5678 9012 3456' });
+    stripeCardExpiry      = elements.create('cardExpiry',  { style: stripeStyle });
+    stripeCardCvc         = elements.create('cardCvc',     { style: stripeStyle, placeholder: 'CVV' });
+    stripeCardElement.mount('#stripe-card-number');
+    stripeCardExpiry.mount('#stripe-card-expiry');
+    stripeCardCvc.mount('#stripe-card-cvc');
+    const errEl = document.getElementById('stripe-card-error');
+    [stripeCardElement, stripeCardExpiry, stripeCardCvc].forEach(el =>
+      el.on('change', e => { if (errEl) errEl.textContent = e.error ? e.error.message : ''; })
+    );
   }
 
   const modal = document.getElementById('stripe-modal');
@@ -1998,7 +2016,7 @@ async function procesarPagoStripe(){
 
     const { error, paymentIntent } = await stripeInstance.confirmCardPayment(data.clientSecret, {
       payment_method: {
-        card: stripeCardElement,
+        card: stripeCardElement,  // cardNumber element
         billing_details: {
           name: nombreTitular,
           email: emailCliente,
