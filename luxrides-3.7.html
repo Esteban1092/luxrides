@@ -425,6 +425,8 @@ select{padding-left:12px;padding-right:12px;}
       <div class="stripe-monto-lbl">Total a pagar</div>
       <div><span class="stripe-monto-val" id="stripe-monto-display">$0</span> <span class="stripe-monto-cur">MXN</span></div>
     </div>
+    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Nombre del titular</label>
+    <input id="stripe-nombre-titular" type="text" placeholder="Como aparece en la tarjeta" style="width:100%;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;margin-bottom:12px;box-sizing:border-box;"/>
     <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Datos de tu tarjeta</label>
     <div id="stripe-card-element"></div>
     <div id="stripe-card-error"></div>
@@ -1947,9 +1949,15 @@ async function procesarPagoStripe(){
     if (!data.clientSecret) throw new Error(data.error || 'No se pudo iniciar el pago.');
 
     // 3. Confirmar con Stripe.js (datos de tarjeta nunca van a nuestro servidor)
-    const nombre = (document.getElementById('inp-nombre').value || '').trim() || 'Cliente';
+    const nombreTitular = (document.getElementById('stripe-nombre-titular').value || '').trim();
+    if (!nombreTitular) {
+      errEl.textContent = 'Ingresa el nombre del titular de la tarjeta.';
+      btn.disabled = false;
+      btn.textContent = '💳 Pagar ahora';
+      return;
+    }
     const { error, paymentIntent } = await stripeInstance.confirmCardPayment(data.clientSecret, {
-      payment_method: { card: stripeCardElement, billing_details: { name: nombre } }
+      payment_method: { card: stripeCardElement, billing_details: { name: nombreTitular } }
     });
     if (error) throw new Error(error.message);
 
