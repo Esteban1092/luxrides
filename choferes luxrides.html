@@ -1395,11 +1395,37 @@
 
     async function finalizarViaje() {
       if (!viajeActual || !viajeActualKey) return;
-      if (!confirm('Confirmas que el viaje finalizo?')) return;
+      if (!confirm('Confirmas que llegaste al destino y el viaje finalizó?')) return;
 
       try {
         const precio = Number(viajeActual.total || viajeActual.precio || 0);
         const pago_chofer = obtenerPagoChofer(viajeActual);
+
+        // Marcar que el CHOFER finalizó — el saldo se acredita solo cuando
+        // también el cliente confirme (Cloud Function lo detecta)
+        if (viajeActual.reserva_id) {
+          const reservaSnap = await db.ref('reservas/' + viajeActual.reserva_id).once('value');
+          const reservaData = reservaSnap.val() || {};
+
+          const ambosFinalizan = reservaData.cliente_finalizo === true;
+
+          await db.ref('reservas/' + viajeActual.reserva_id).update({
+            chofer_finalizo: true,
+            chofer_finalizo_en: new Date().toISOString(),
+            estado: ambosFinalizan ? 'completado' : 'esperando_cliente',
+            eta_chofer_min: null,
+            eta_chofer_hora: null
+          });
+
+          // Si el cliente ya había confirmado, acreditar saldo de inmediato
+          if (ambosFinalizan) {
+            await db.ref('choferes/' + choferID).update({
+              saldo_disponible: (Number((await db.ref('choferes/' + choferID + '/saldo_disponible').once('value')).val()) || 0) + pago_chofer
+            });
+          }
+        }
+
+        // Guardar en historial del chofer
         await db.ref('historial/' + choferID).push({
           cliente: viajeActual.cliente || 'Cliente',
           origen: viajeActual.origen || '-',
@@ -1412,19 +1438,18 @@
           timestamp: Date.now()
         });
 
-        if (viajeActual.reserva_id) {
-          await db.ref('reservas/' + viajeActual.reserva_id).update({
-            estado: 'Completado',
-            eta_chofer_min: null,
-            eta_chofer_hora: null,
-            eta_actualizado_en: new Date().toISOString()
-          });
-        }
-
         await db.ref('viajes/' + choferID + '/' + viajeActualKey).remove();
         await db.ref('choferes/' + choferID).update({ estado: 'libre' });
 
         cerrarPantallaViaje();
+
+        if (viajeActual.reserva_id) {
+          const reservaSnap2 = await db.ref('reservas/' + viajeActual.reserva_id).once('value');
+          const r2 = reservaSnap2.val() || {};
+          if (r2.estado !== 'completado') {
+            alert('✅ Tu parte está registrada.\n\nEsperando que el cliente confirme la llegada para acreditar tu saldo.');
+          }
+        }
       } catch (err) {
         console.error(err);
         alert('No se pudo finalizar el viaje.');

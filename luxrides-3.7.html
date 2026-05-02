@@ -1984,12 +1984,30 @@ async function procesarPagoStripe(){
 
 async function finalizarViajeCliente(){
   if (!reservaActivaId || !db) return;
-  if (!confirm('¿Confirmas que el viaje ha concluido?')) return;
+  if (!confirm('¿Confirmas que llegaste a tu destino?')) return;
   try {
-    await db.ref('reservas/' + reservaActivaId).update({
-      estado: 'completado',
-      completado_en: new Date().toISOString()
-    });
+    const snap = await db.ref('reservas/' + reservaActivaId).once('value');
+    const r = snap.val() || {};
+    const choferYaFinalizo = r.chofer_finalizo === true;
+
+    const update = {
+      cliente_finalizo: true,
+      cliente_finalizo_en: new Date().toISOString()
+    };
+
+    // Si el chofer ya confirmó → marcar completado directamente
+    if (choferYaFinalizo) {
+      update.estado = 'completado';
+    }
+
+    await db.ref('reservas/' + reservaActivaId).update(update);
+
+    const btnFin = document.getElementById('btn-finalizar-viaje');
+    if (btnFin) btnFin.style.display = 'none';
+
+    if (!choferYaFinalizo) {
+      alert('✅ Gracias por confirmar.\n\nEsperando que tu chofer también confirme para cerrar el viaje.');
+    }
   } catch(e) {
     alert('No se pudo finalizar. Intenta de nuevo.');
   }
