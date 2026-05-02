@@ -138,6 +138,11 @@
     .retiro-status{font-size:.82rem;color:var(--muted);margin-top:8px;text-align:center;min-height:18px;}
     .saldo-en-proceso{font-size:.82rem;color:var(--warn);margin-top:2px;}
     .retiro-seguridad-nota{font-size:.78rem;color:#7dbf7d;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:9px 11px;margin-bottom:12px;line-height:1.5;}
+    .metodo-selector{display:flex;gap:8px;margin-bottom:12px;}
+    .metodo-btn{flex:1;padding:10px 6px;border-radius:10px;border:2px solid #2a2a2a;background:#0d0d0d;color:#888;font-size:.82rem;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
+    .metodo-btn.activo-instant{border-color:var(--gold);color:var(--gold);background:rgba(212,175,55,.08);}
+    .metodo-btn.activo-standard{border-color:#60a5fa;color:#60a5fa;background:rgba(96,165,250,.08);}
+    .metodo-badge{font-size:.65rem;display:block;margin-top:3px;opacity:.75;font-weight:400;}
   </style>
 </head>
 <body>
@@ -254,10 +259,22 @@
         <div class="saldo-display" id="saldo-display">$0 MXN</div>
         <p class="saldo-en-proceso" id="saldo-en-proceso" style="display:none;"></p>
 
-        <div class="banco-info-box">
+        <div class="metodo-selector">
+          <button class="metodo-btn activo-instant" id="btn-metodo-instant" onclick="seleccionarMetodo('instant')">
+            ⚡ Instantáneo
+            <span class="metodo-badge">Tarjeta débito · minutos</span>
+          </button>
+          <button class="metodo-btn" id="btn-metodo-standard" onclick="seleccionarMetodo('standard')">
+            🏦 Transferencia
+            <span class="metodo-badge">CLABE · 1–2 días hábiles</span>
+          </button>
+        </div>
+
+        <!-- Campos Instant (tarjeta débito) -->
+        <div class="banco-info-box" id="campos-instant">
           <h5>⚡ Tarjeta de débito para retiro instantáneo</h5>
           <div class="inline-field">
-            <input id="inp-titular" type="text" placeholder="Nombre completo del titular de la cuenta"/>
+            <input id="inp-titular" type="text" placeholder="Nombre completo del titular"/>
           </div>
           <div class="inline-field" style="margin-top:6px;">
             <input id="inp-email" type="email" inputmode="email" placeholder="Correo electrónico (para tu cuenta Stripe)"/>
@@ -273,6 +290,22 @@
             <button onclick="guardarDatosBanco()">Guardar</button>
           </div>
           <p id="banco-guardado" style="color:var(--muted);font-size:.79rem;margin-top:6px;"></p>
+        </div>
+
+        <!-- Campos Standard (CLABE) -->
+        <div class="banco-info-box" id="campos-standard" style="display:none;">
+          <h5>🏦 Datos bancarios para transferencia SPEI</h5>
+          <div class="inline-field">
+            <input id="inp-titular-std" type="text" placeholder="Nombre completo del titular"/>
+          </div>
+          <div class="inline-field" style="margin-top:6px;">
+            <input id="inp-banco-std" type="text" placeholder="Banco (Ej: BBVA, Banamex, HSBC…)"/>
+          </div>
+          <div class="inline-field" style="margin-top:6px;">
+            <input id="inp-clabe-std" type="text" inputmode="numeric" maxlength="18" placeholder="CLABE interbancaria (18 dígitos)"/>
+            <button onclick="guardarDatosBanco()">Guardar</button>
+          </div>
+          <p id="banco-guardado-std" style="color:var(--muted);font-size:.79rem;margin-top:6px;"></p>
         </div>
 
         <p class="retiro-seguridad-nota">🔒 <strong>Seguridad de Nivel Bancario:</strong> Tus datos están encriptados y tus pagos garantizados por el protocolo de gestión financiera de LuxRides.</p>
@@ -1869,6 +1902,7 @@
       // Datos bancarios guardados
       db.ref('choferes/' + choferID + '/banco').once('value').then(snap => {
         const banco = snap.val() || {};
+        // Instant
         const inpTitular = document.getElementById('inp-titular');
         const inpEmail   = document.getElementById('inp-email');
         const inpBanco   = document.getElementById('inp-banco');
@@ -1964,23 +1998,25 @@
       // Verificar que tenga CLABE registrada
       const bancoSnap = await db.ref('choferes/' + choferID + '/banco').once('value');
       const banco = bancoSnap.val() || {};
-      if (!banco.titular) {
-        alert('Primero guarda tu nombre completo como titular en la sección de datos bancarios.');
-        return;
-      }
-      if (!banco.clabe || !/^\d{18}$/.test(banco.clabe)) {
-        alert('Primero guarda tu CLABE interbancaria (18 dígitos) en la sección de datos bancarios.');
-        return;
+      const esInstant = metodoRetiro === 'instant';
+
+      if (esInstant) {
+        if (!banco.titular || !banco.stripeCardId) {
+          alert('Primero registra tu tarjeta de débito con el botón Guardar.');
+          return;
+        }
+      } else {
+        if (!banco.titularStd || !banco.clabe || !/^\d{18}$/.test(banco.clabe)) {
+          alert('Primero guarda tu CLABE interbancaria (18 dígitos) en la sección de transferencia.');
+          return;
+        }
       }
 
       const montoFmt = '$' + saldoActual.toLocaleString('es-MX') + ' MXN';
-      if (!confirm(
-        '¿Confirmas el retiro por ' + montoFmt + '?\n\n' +
-        'Titular: ' + banco.titular + '\n' +
-        'Banco: ' + (banco.nombre || 'Sin especificar') + '\n' +
-        'CLABE: ' + banco.clabe + '\n\n' +
-        'El pago se procesará automáticamente vía Stripe.'
-      )) return;
+      const confirmMsg = esInstant
+        ? '¿Confirmas el retiro por ' + montoFmt + '?\n\nTitular: ' + banco.titular + '\nBanco: ' + (banco.nombre||'Sin especificar') + '\nTarjeta: •••• •••• •••• ' + (banco.cardLast4||'????') + '\n\n⚡ Pago instantáneo — llega en minutos.'
+        : '¿Confirmas el retiro por ' + montoFmt + '?\n\nTitular: ' + banco.titularStd + '\nBanco: ' + (banco.nombreStd||'Sin especificar') + '\nCLABE: ' + banco.clabe + '\n\n🏦 Transferencia SPEI — llega en 1–2 días hábiles.';
+      if (!confirm(confirmMsg)) return;
 
       const btn = document.getElementById('btn-solicitar-retiro');
       const msgEl = document.getElementById('retiro-status-msg');
@@ -1995,11 +2031,13 @@
           choferId: choferID,
           choferNombre: choferNombre,
           monto: saldoActual,
-          banco: banco.nombre || '',
-          titular: banco.titular || '',
+          metodo: metodoRetiro,
+          banco: metodoRetiro === 'instant' ? (banco.nombre || '') : (banco.nombreStd || ''),
+          titular: metodoRetiro === 'instant' ? (banco.titular || '') : (banco.titularStd || ''),
           email: banco.email || '',
-          stripeCardId: banco.stripeCardId,
-          cardLast4: banco.cardLast4 || '',
+          stripeCardId: metodoRetiro === 'instant' ? (banco.stripeCardId || '') : '',
+          cardLast4: metodoRetiro === 'instant' ? (banco.cardLast4 || '') : '',
+          clabe: metodoRetiro === 'standard' ? (banco.clabe || '') : '',
           fecha: new Date().toISOString(),
           status: 'pendiente'
         });
@@ -2032,7 +2070,9 @@
             nuevaRef.off('value', statusListener);
             if (msgEl) {
               msgEl.style.color = 'var(--ok)';
-              msgEl.innerText = '✅ ¡Pago enviado! Llegará a tu tarjeta en minutos.';
+              msgEl.innerText = esInstant
+                ? '✅ ¡Pago enviado! Llegará a tu tarjeta en minutos.'
+                : '✅ ¡Solicitud enviada! Llegará a tu cuenta en 1–2 días hábiles.';
             }
             // El saldo ya es 0, el botón queda deshabilitado correctamente
 

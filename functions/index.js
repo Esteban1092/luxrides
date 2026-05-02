@@ -402,70 +402,87 @@ exports.procesarSolicitudRetiro = onValueCreated(
     const solicitudId = event.params.solicitudId;
     const ref = db.ref('solicitudes_retiro/' + solicitudId);
 
-    const { choferId, choferNombre, titular, email, monto, stripeCardId, cardLast4, banco } = solicitud || {};
+    const { choferId, choferNombre, titular, email, monto, metodo, stripeCardId, cardLast4, clabe, banco } = solicitud || {};
 
-    if (!choferId || !monto || !stripeCardId) {
+    if (!choferId || !monto) {
       logger.warn('Solicitud de retiro con datos incompletos', { solicitudId });
-      await ref.update({
-        status: 'error',
-        error: 'Datos incompletos: falta choferId, monto o tarjeta registrada.',
-        errorEn: new Date().toISOString()
-      });
+      await ref.update({ status: 'error', error: 'Datos incompletos.', errorEn: new Date().toISOString() });
+      return;
+    }
+    if (metodo === 'instant' && !stripeCardId) {
+      await ref.update({ status: 'error', error: 'Falta tarjeta registrada para pago instant\u00e1neo.', errorEn: new Date().toISOString() });
+      return;
+    }
+    if (metodo === 'standard' && (!clabe || !/^\d{18}$/.test(clabe))) {
+      await ref.update({ status: 'error', error: 'CLABE inv\u00e1lida para transferencia SPEI.', errorEn: new Date().toISOString() });
       return;
     }
 
     const stripe = require('stripe')(stripeSecretKey.value());
 
     try {
-      await ref.update({
-        status: 'en_proceso',
-        procesadoEn: new Date().toISOString()
-      });
+      await ref.update({ status: 'en_proceso', procesadoEn: new Date().toISOString() });
 
-      // 1. Obtener stripeAccountId (ya creado en registrarTarjetaChofer)
+      // 1. Obtener stripeAccountId
       const stripeSnap = await db.ref('choferes/' + choferId + '/stripeAccountId').once('value');
       const stripeAccountId = stripeSnap.val();
+      if (!stripeAccountId) throw new Error('El chofer no tiene cuenta Stripe. Debe registrar su tarjeta primero.');
 
-      if (!stripeAccountId) {
-        throw new Error('El chofer no tiene cuenta Stripe. Debe registrar su tarjeta primero.');
-      }
-
-      // 2. Usar el stripeCardId ya registrado
-      const bankAccountId = stripeCardId;
-
-      // 3. Transferir desde la cuenta de la plataforma → cuenta Connect del chofer
+      // 2. Transferir plataforma → cuenta Connect del chofer
       const transfer = await stripe.transfers.create({
         amount: Math.round(monto * 100),
         currency: 'mxn',
         destination: stripeAccountId,
         transfer_group: solicitudId,
-        metadata: { solicitudId, choferId, banco: banco || '', cardLast4: cardLast4 || '' }
+        metadata: { solicitudId, choferId, banco: banco || '', metodo: metodo || 'instant' }
       });
-
       logger.info('Transferencia Stripe creada', { solicitudId, choferId, monto, transferId: transfer.id });
 
-      // 4. Payout instantáneo → tarjeta de débito del chofer
+      // 3. Payout según método: instant (tarjeta) o standard (CLABE)
+      let payoutDestination;
+      if (metodo === 'standard') {
+        // Obtener o registrar cuenta CLABE
+        const extAccounts = await stripe.accounts.listExternalAccounts(stripeAccountId, { object: 'bank_account', limit: 20 });
+        const existingClabe = extAccounts.data.find(a => a.last4 === clabe.slice(-4));
+        if (existingClabe) {
+          payoutDestination = existingClabe.id;
+        } else {
+          const bankAccount = await stripe.accounts.createExternalAccount(stripeAccountId, {
+            external_account: {
+              object: 'bank_account', country: 'MX', currency: 'mxn',
+              account_number: clabe,
+              account_holder_name: titular || choferNombre || 'Chofer LuxRides',
+              account_holder_type: 'individual'
+            }
+          });
+          payoutDestination = bankAccount.id;
+          logger.info('CLABE registrada en Stripe', { choferId, payoutDestination });
+        }
+      } else {
+        payoutDestination = stripeCardId;
+      }
+
       const payout = await stripe.payouts.create(
         {
           amount: Math.round(monto * 100),
           currency: 'mxn',
-          destination: bankAccountId,
-          method: 'instant',
+          destination: payoutDestination,
+          method: metodo === 'standard' ? 'standard' : 'instant',
           statement_descriptor: 'LUXRIDES PAGO',
-          metadata: { solicitudId, choferId, cardLast4: cardLast4 || '' }
+          metadata: { solicitudId, choferId }
         },
         { stripeAccount: stripeAccountId }
       );
+      logger.info('Payout creado', { solicitudId, choferId, payoutId: payout.id, metodo });
 
-      logger.info('Payout instantáneo a tarjeta creado', { solicitudId, choferId, payoutId: payout.id });
-
-      // 5. Marcar como pagado en Firebase
+      // 4. Marcar como pagado en Firebase
       await ref.update({
         status: 'pagado',
         stripeAccountId,
         stripeTransferId: transfer.id,
         stripePayoutId: payout.id,
-        payoutMethod: 'instant',
+        payoutMethod: metodo || 'instant',
+        arrivalDate: payout.arrival_date || null,
         pagadoEn: new Date().toISOString()
       });
 
