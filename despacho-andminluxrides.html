@@ -1794,7 +1794,9 @@ function poblarSelect(sel) {
   Object.entries(choferesDisponibles).forEach(([id, ch]) => {
     const opt = document.createElement('option');
     opt.value = id;
-    opt.textContent = `${ch.nombre} (${ch.estado})`;
+    const vehiculoEmoji = ch.vehiculo_tipo === 'camioneta' ? '🚙' : ch.vehiculo_tipo === 'carro' ? '🚗' : '❓';
+    const vehiculoLabel = ch.vehiculo_tipo === 'camioneta' ? 'Camioneta' : ch.vehiculo_tipo === 'carro' ? 'Carro' : 'Sin vehículo';
+    opt.textContent = `${vehiculoEmoji} ${ch.nombre} · ${vehiculoLabel} (${ch.estado})`;
     if (id === valorActual) opt.selected = true;
     sel.appendChild(opt);
   });
