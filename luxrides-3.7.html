@@ -429,12 +429,17 @@ select{padding-left:12px;padding-right:12px;}
       <div><span class="stripe-monto-val" id="stripe-monto-display">$0</span> <span class="stripe-monto-cur">MXN</span></div>
     </div>
     <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Nombre del titular</label>
-    <input id="stripe-nombre-titular" type="text" placeholder="Como aparece en la tarjeta" style="width:100%;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;margin-bottom:12px;box-sizing:border-box;"/>
+    <input id="stripe-nombre-titular" type="text" placeholder="Como aparece en la tarjeta" autocomplete="cc-name" style="width:100%;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;margin-bottom:12px;box-sizing:border-box;"/>
     <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Correo electrónico</label>
     <input id="stripe-email" type="email" placeholder="tucorreo@email.com" autocomplete="email" style="width:100%;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;margin-bottom:12px;box-sizing:border-box;"/>
-    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Código postal</label>
-    <input id="stripe-cp" type="text" placeholder="Código postal de facturación" inputmode="numeric" maxlength="10" autocomplete="postal-code" style="width:100%;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;margin-bottom:12px;box-sizing:border-box;"/>
-    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Datos de tu tarjeta</label>
+    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Teléfono (WhatsApp)</label>
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <span style="padding:13px 10px;background:#f5f5f7;border:1.5px solid #ddd;border-radius:8px;font-size:.95rem;color:#888;white-space:nowrap;">+52</span>
+      <input id="stripe-telefono" type="tel" placeholder="10 dígitos" inputmode="numeric" maxlength="10" autocomplete="tel-national" style="flex:1;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;box-sizing:border-box;"/>
+    </div>
+    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Ãdigo postal de facturación</label>
+    <input id="stripe-cp" type="text" placeholder="Código postal" inputmode="numeric" maxlength="10" autocomplete="postal-code" style="width:100%;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;margin-bottom:12px;box-sizing:border-box;"/>
+    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Número de tarjeta, vencimiento y CVC</label>
     <div id="stripe-card-element"></div>
     <div id="stripe-card-error"></div>
     <button id="btn-pagar-stripe" onclick="procesarPagoStripe()">💳 Pagar ahora</button>
@@ -1971,6 +1976,7 @@ async function procesarPagoStripe(){
     // 3. Confirmar con Stripe.js (datos de tarjeta nunca van a nuestro servidor)
     const nombreTitular = (document.getElementById('stripe-nombre-titular').value || '').trim();
     const emailCliente  = (document.getElementById('stripe-email').value || '').trim();
+    const telefonoCliente = (document.getElementById('stripe-telefono').value || '').replace(/\D/g,'').trim();
     const cpCliente     = (document.getElementById('stripe-cp').value || '').trim();
 
     if (!nombreTitular) {
@@ -1979,6 +1985,10 @@ async function procesarPagoStripe(){
     }
     if (!emailCliente || !/^[^@]+@[^@]+\.[^@]+$/.test(emailCliente)) {
       errEl.textContent = 'Ingresa un correo electrónico válido.';
+      btn.disabled = false; btn.textContent = '💳 Pagar ahora'; return;
+    }
+    if (!telefonoCliente || telefonoCliente.length < 10) {
+      errEl.textContent = 'Ingresa tu número de teléfono de 10 dígitos.';
       btn.disabled = false; btn.textContent = '💳 Pagar ahora'; return;
     }
     if (!cpCliente) {
@@ -1992,6 +2002,7 @@ async function procesarPagoStripe(){
         billing_details: {
           name: nombreTitular,
           email: emailCliente,
+          phone: '+52' + telefonoCliente,
           address: { postal_code: cpCliente, country: 'MX' }
         }
       },
