@@ -2056,20 +2056,35 @@ async function finalizarViajeCliente(){
     const snap = await db.ref('reservas/' + reservaActivaId).once('value');
     const r = snap.val() || {};
     const choferYaFinalizo = r.chofer_finalizo === true;
+    const choferId = r.chofer_id || r.chofer_asignado || null;
+    const pagoChofer = r.pago_chofer != null
+      ? Number(r.pago_chofer)
+      : Math.round(Number(r.total || r.precio || 0) * 0.80);
 
-    // Solo poner bandera — el CF se encarga de acreditar saldo y marcar completado
     await db.ref('reservas/' + reservaActivaId).update({
       cliente_finalizo: true,
-      cliente_finalizo_en: new Date().toISOString()
+      cliente_finalizo_en: new Date().toISOString(),
+      estado: choferYaFinalizo ? 'completado' : 'esperando_cliente'
     });
+
+    // Si el chofer ya finalizó → acreditar saldo con transacción atómica
+    if (choferYaFinalizo && choferId && pagoChofer > 0) {
+      const { committed } = await db.ref('reservas/' + reservaActivaId + '/saldo_acreditado').transaction(current => {
+        if (current === true) return; // ya acreditado
+        return true;
+      });
+      if (committed) {
+        await db.ref('choferes/' + choferId + '/saldo_disponible').transaction(s => (Number(s) || 0) + pagoChofer);
+      }
+    }
 
     const btnFin = document.getElementById('btn-finalizar-viaje');
     if (btnFin) btnFin.style.display = 'none';
 
     if (choferYaFinalizo) {
-      alert('✅ ¡Listo! El viaje ha sido confirmado. ¡Gracias por usar LuxRides!');
+      alert('✅ ¡Listo! Viaje confirmado. ¡Gracias por usar LuxRides!');
     } else {
-      alert('✅ Gracias por confirmar.\n\nTu chofer aún no ha finalizado. El viaje se cerrará cuando él también confirme.');
+      alert('✅ Gracias por confirmar.\n\nEl viaje se completará cuando tu chofer también finalice.');
     }
   } catch(e) {
     alert('No se pudo finalizar. Intenta de nuevo.');

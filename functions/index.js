@@ -580,9 +580,16 @@ exports.completarViajeDual = onValueUpdated(
     const choferFinalizo  = after.chofer_finalizo  === true;
     const clienteFinalizo = after.cliente_finalizo === true;
 
-    // Solo actuar si ambos confirmaron y el saldo aún no fue acreditado
+    // Solo actuar si ambos confirmaron
     if (!choferFinalizo || !clienteFinalizo) return;
-    if (after.saldo_acreditado === true) return;
+
+    // Usar transacción atómica para reclamar la acreditación (previene doble pago)
+    const saldoFlagRef = db.ref('reservas/' + reservaId + '/saldo_acreditado');
+    const { committed } = await saldoFlagRef.transaction(current => {
+      if (current === true) return; // ya acreditado por la app, abortar
+      return true;
+    });
+    if (!committed) return; // la app ganó la carrera, CF no hace nada
 
     const reservaRef = db.ref('reservas/' + reservaId);
     const choferId   = after.chofer_id || after.chofer_asignado || null;
@@ -593,10 +600,9 @@ exports.completarViajeDual = onValueUpdated(
       ? Number(after.pago_chofer)
       : Math.round(total * 0.80);
 
-    // Marcar reserva como completada y saldo acreditado (evita doble ejecución)
+    // Marcar reserva como completada
     await reservaRef.update({
       estado: 'completado',
-      saldo_acreditado: true,
       completado_en: new Date().toISOString()
     });
 
