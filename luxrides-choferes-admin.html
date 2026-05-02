@@ -108,12 +108,65 @@
           <div class="empty">Cargando choferes…</div>
         </div>
       </section>
+
+      <!-- NUEVA SECCIÓN: Reservas nuevas -->
+      <section class="card" style="grid-column:1/-1;margin-top:18px;">
+        <div class="toolbar">
+          <h2>📝 Reservas nuevas (web)</h2>
+          <button class="btn-mini" onclick="cargarReservas()">Refrescar</button>
+        </div>
+        <div id="lista-reservas">
+          <div class="empty">Cargando reservas…</div>
+        </div>
+      </section>
     </div>
   </div>
 
   <div id="toast"></div>
 
   <script>
+        // --- Mostrar reservas nuevas de index.html (solo lectura) ---
+        async function cargarReservas() {
+          const div = document.getElementById('lista-reservas');
+          if (!db) {
+            div.innerHTML = '<div class="empty">Esperando conexión…</div>';
+            return;
+          }
+          try {
+            const snap = await db.ref('reservas').orderByChild('creadoEn').limitToLast(20).once('value');
+            div.innerHTML = '';
+            let count = 0;
+            // Mostrar reservas más recientes primero
+            const reservas = [];
+            snap.forEach(child => reservas.push({ id: child.key, ...child.val() }));
+            reservas.reverse();
+            for (const r of reservas) {
+              count++;
+              div.innerHTML += `
+                <div class="chofer-item">
+                  <div class="row">
+                    <div>
+                      <div class="name">${escHtml(r.usuario || 'Sin usuario')}</div>
+                      <div class="id">ID: ${escHtml(r.id)}</div>
+                    </div>
+                    <span class="badge ${r.choferId ? 'ocupado' : 'libre'}">${r.choferId ? 'Asignada' : 'Pendiente'}</span>
+                  </div>
+                  <div class="meta">🗓️ ${escHtml(r.fecha || '')} ${escHtml(r.hora || '')} ${escHtml(r.ampm || '')} | Origen: <b>${escHtml(r.origen || '')}</b> → <b>${escHtml(r.destino || '')}</b></div>
+                  <div class="meta">Pasajeros: ${escHtml(r.pasajeros || '')} | Precio: $${escHtml(r.precio || '')}</div>
+                  <div class="meta">Estado: <b>${escHtml(r.estado || 'pendiente')}</b></div>
+                </div>`;
+            }
+            if (count === 0) {
+              div.innerHTML = '<div class="empty">No hay reservas nuevas.</div>';
+            }
+          } catch (err) {
+            console.error(err);
+            div.innerHTML = '<div class="empty">Error al leer reservas.</div>';
+          }
+        }
+
+        // Cargar reservas al abrir
+        setTimeout(cargarReservas, 1200);
     const firebaseConfig = {
       apiKey: "AIzaSyDlzuMEutA5yDZLpRG62WEuxBQmi6y_tq0",
       authDomain: "luxridesreservas-d5102.firebaseapp.com",

@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luxrides VIP</title>
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700&display=swap" rel="stylesheet">
+  <style>
+        .minimizar-btn {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: #fff;
+          border: 1.5px solid #1a237e;
+          color: #1a237e;
+          border-radius: 50%;
+          width: 32px;
+          height: 32px;
+          font-size: 1.3em;
+          font-weight: bold;
+          cursor: pointer;
+          z-index: 20;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          transition: background 0.2s, color 0.2s;
+        }
+        .minimizar-btn:hover {
+          background: #1a237e;
+          color: #fff;
+        }
+        .mostrar-panel-btn {
+          position: fixed;
+          top: 20px;
+          left: 20px;
+          z-index: 30;
+          background: #1a237e;
+          color: #fff;
+          border: none;
+          border-radius: 50%;
+          width: 48px;
+          height: 48px;
+          font-size: 2em;
+          font-weight: bold;
+          box-shadow: 0 4px 18px rgba(0,0,0,0.13);
+          cursor: pointer;
+          display: none;
+          align-items: center;
+          justify-content: center;
+        }
+        .mostrar-panel-btn.visible {
+          display: flex;
+        }
+    body {
+      font-family: 'Montserrat', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: #222;
+      overflow: hidden;
+    }
+    #map {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      background: #000;
+    }
+    .container {
+      z-index: 100 !important;
+      position: fixed;
+      top: 40px;
+      left: 40px;
+      width: 220px;
+      min-width: 180px;
+      max-width: 92vw;
+      min-height: 120px;
+      max-height: 60vh;
+      background: rgba(24, 24, 24, 0.88);
+      border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      padding: 14px 10px 14px 10px;
+      color: #fff;
+      border: 2px solid #bfa046;
+      overflow-y: auto;
+      cursor: move;
+      transition: box-shadow 0.2s;
+      backdrop-filter: blur(6px);
+      resize: both;
+    }
+    .container:active {
+      box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+    }
+    h1 {
+      text-align: center;
+      color: #1a237e;
+      margin-bottom: 10px;
+    }
+    .bottom-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .bottom-buttons a, .bottom-buttons button {
+      background: linear-gradient(90deg, #bfa046 0%, #ffe082 100%) !important;
+      color: #181818 !important;
+      border: none !important;
+      border-radius: 14px !important;
+      padding: 16px 0 16px 0 !important;
+      font-size: 1.18rem !important;
+      text-align: center !important;
+      text-decoration: none !important;
+      font-weight: 900 !important;
+      letter-spacing: 0.8px !important;
+      box-shadow: 0 6px 24px 0 rgba(191,160,70,0.22), 0 2px 0 #fff8 inset !important;
+      cursor: pointer !important;
+      transition: background 0.18s, color 0.18s, box-shadow 0.18s, transform 0.12s;
+      outline: none !important;
+      position: relative;
+      overflow: hidden;
+      text-shadow: 0 1.5px 0 #fff8, 0 1px 0 #bfa04688;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+    .bottom-buttons a::before, .bottom-buttons button::before {
+      content: '\1F451'; /* corona dorada */
+      font-size: 1.3em;
+      margin-right: 10px;
+      color: #ffd700;
+      filter: drop-shadow(0 0 2px #fff8);
+      vertical-align: middle;
+      transition: transform 0.18s;
+    }
+    .bottom-buttons a:hover, .bottom-buttons button:hover {
+      background: linear-gradient(90deg, #ffe082 0%, #bfa046 100%) !important;
+      color: #1a237e !important;
+      box-shadow: 0 10px 32px 0 rgba(191,160,70,0.32), 0 3px 0 #fff inset !important;
+      transform: translateY(-2px) scale(1.04);
+    }
+    .bottom-buttons a:active, .bottom-buttons button:active {
+          .bottom-buttons a[disabled], .bottom-buttons button[disabled] {
+            opacity: 0.5 !important;
+            filter: grayscale(0.3) brightness(0.95);
+            cursor: not-allowed !important;
+            pointer-events: none !important;
+            box-shadow: none !important;
+            background: #bfa046 !important;
+            color: #fff !important;
+          }
+          // --- Validación dinámica de botones ---
+          function validarBotonesReserva() {
+            const nombre = document.getElementById('usuario').value.trim();
+            const origen = document.getElementById('origen').value.trim();
+            const destino = document.getElementById('destino').value.trim();
+            const btnClip = document.querySelector('.bottom-buttons a');
+            const btnWhats = document.getElementById('whatsapp-btn');
+            const camposOk = nombre && origen && destino;
+            if (btnClip) btnClip.disabled = !camposOk;
+            if (btnWhats) btnWhats.disabled = !camposOk;
+          }
+          // Eventos para validar en tiempo real
+          document.addEventListener('DOMContentLoaded', function() {
+            ['usuario','origen','destino','pasajeros'].forEach(id => {
+              const el = document.getElementById(id);
+              if (el) {
+                el.addEventListener('input', validarBotonesReserva);
+                // Limpiar precio y variables al cambiar campos clave
+                if (id !== 'usuario') {
+                  el.addEventListener('input', function() {
+                    ultimoPrecio = 0;
+                    ultimoTipoVehiculo = '';
+                    ultimaDistancia = 0;
+                    const precioDiv = document.getElementById('precio');
+                    if (precioDiv) precioDiv.innerText = '';
+                  });
+                }
+              }
+            });
+            validarBotonesReserva();
+          });
+      background: linear-gradient(90deg, #bfa046 0%, #ffe082 100%) !important;
+      color: #181818 !important;
+      box-shadow: 0 2px 8px 0 rgba(191,160,70,0.13) !important;
+      transform: scale(0.98);
+    }
+    /* Efecto de brillo animado */
+    .bottom-buttons a::after, .bottom-buttons button::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -75%;
+      width: 50%; height: 100%;
+      background: linear-gradient(120deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.38) 50%, rgba(255,255,255,0.18) 100%);
+      transform: skewX(-25deg);
+      pointer-events: none;
+      z-index: 1;
+      animation: brilloVIP 2.2s infinite linear;
+    }
+    @keyframes brilloVIP {
+      0% { left: -75%; }
+      60% { left: 120%; }
+      100% { left: 120%; }
+    }
+    label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 4px;
+      font-weight: 600;
+      color: #bfa046;
+      letter-spacing: 0.5px;
+    }
+    input, select, .google-places-input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #bfa046;
+      margin-bottom: 8px;
+      font-size: 1rem;
+      box-sizing: border-box;
+      background: #232323;
+      color: #fff;
+    }
+    input::placeholder, .google-places-input::placeholder {
+      color: #bfa046;
+      opacity: 0.8;
+    }
+    .service-type-note {
+      font-size: 0.9em;
+      color: #e65100;
+      margin-bottom: 8px;
+    }
+    .paradas-list {
+      margin-bottom: 8px;
+    }
+    .parada-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .parada-item button {
+      background: #e53935;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+    .parada-item button:hover {
+      background: #b71c1c;
+    }
+    .am-pm-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .am-pm-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #bdbdbd;
+      background: #fff;
+      color: #222;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s, color 0.2s;
+    }
+    .am-pm-btn.selected {
+      background: #1a237e;
+      color: #fff;
+      border-color: #1a237e;
+    }
+    #map {
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      background: #000;
+    }
+    .precio {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #388e3c;
+      margin: 10px 0;
+      text-align: center;
+    }
+    @media (max-width: 900px) {
+      .container {
+        position: fixed;
+        width: 90vw;
+        left: 5vw;
+        top: 10px;
+        min-width: 140px;
+        max-width: 96vw;
+        min-height: 100px;
+        max-height: 55vh;
+        border-radius: 14px;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.13);
+        padding: 8px 2vw 12px 2vw;
+        border: 2px solid #bfa046;
+        overflow-y: auto;
+        background: rgba(24,24,24,0.88);
+        backdrop-filter: blur(6px);
+        resize: both;
+      }
+      #map {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button id="mostrar-panel-btn" class="mostrar-panel-btn" title="Mostrar reserva">📝</button>
+  <div class="container" id="reserva-panel">
+    <button class="minimizar-btn" id="minimizar-btn" title="Minimizar">–</button>
+    <h1 style="text-align:center;color:#bfa046;margin-bottom:10px;">Luxrides VIP</h1>
+    <!-- Nota de pago importante -->
+    <div style="background:#232323;border:2px solid #bfa046;color:#bfa046;padding:14px 12px 10px 12px;border-radius:10px;margin-bottom:18px;font-weight:600;">
+      <span style="font-size:1.1em;">IMPORTANTE:</span> La asignación de su conductor se realizará durante el proceso de pago.<br>
+      Agradecemos incluir el nombre del usuario en el concepto del pago.
+    </div>
+    <form id="reserva-form" autocomplete="off">
+      <label for="usuario">Nombre de usuario</label>
+      <input type="text" id="usuario" name="usuario" required placeholder="Ej: estebanquito">
+
+      <label for="tipo-servicio">Tipo de servicio</label>
+      <select id="tipo-servicio" name="tipo-servicio">
+        <option value="tiempo">Por tiempo</option>
+        <option value="km">Por kilometraje</option>
+      </select>
+      <div id="nota-tiempo" class="service-type-note" style="display:none;">
+        Solo se harán servicios por tiempo.<br>
+        <b>Nota:</b> El servicio por tiempo tiene prioridad y solo se aceptan reservas bajo esta modalidad.
+      </div>
+
+      <div id="horas-servicio-container">
+        <label for="horas-servicio">Horas de servicio (2-12)</label>
+        <input type="number" id="horas-servicio" name="horas-servicio" min="2" max="12" value="2">
+      </div>
+
+      <label for="origen">Lugar de recogida</label>
+      <input id="origen" class="google-places-input" placeholder="Ej: Hotel, aeropuerto, calle..." required>
+
+      <div class="paradas-list" id="paradas-list"></div>
+      <button type="button" id="agregar-parada" style="background:#bfa046;color:#181818;font-weight:700;">Agregar parada</button>
+
+      <label for="destino">Destino final</label>
+      <input id="destino" class="google-places-input" placeholder="Ej: Hotel, aeropuerto, calle..." required>
+
+      <label for="fecha">Fecha de reserva</label>
+      <input type="date" id="fecha" name="fecha" required>
+
+      <label for="hora">Hora de llegada</label>
+      <input type="time" id="hora" name="hora" required>
+      <div class="am-pm-buttons">
+        <button type="button" class="am-pm-btn selected" data-value="AM">AM</button>
+        <button type="button" class="am-pm-btn" data-value="PM">PM</button>
+      </div>
+
+      <label for="pasajeros">Número de pasajeros</label>
+      <input type="number" id="pasajeros" name="pasajeros" min="1" max="12" value="1" required>
+
+
+
+      <button type="button" id="calcular-precio" class="btn-dorado">Calcular precio</button>
+      <div class="precio" id="precio"></div>
+            <!-- Sección de chofer asignado -->
+            <div id="chofer-asignado" style="display:none;margin-top:14px;padding:12px 8px 10px 8px;background:rgba(34,34,34,0.93);border-radius:10px;border:1.5px solid #bfa046;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <img id="chofer-foto" src="https://cdn-icons-png.flaticon.com/512/194/194938.png" alt="Foto chofer" style="width:48px;height:48px;border-radius:50%;border:2px solid #bfa046;background:#fff;object-fit:cover;">
+                <div>
+                  <div id="chofer-nombre" style="font-weight:700;font-size:1.1em;color:#ffe082;">Nombre Chofer</div>
+                  <div id="chofer-auto" style="font-size:0.97em;">Auto: <span id="chofer-auto-detalle">-</span></div>
+                  <div id="chofer-placas" style="font-size:0.97em;">Placas: <span id="chofer-placas-detalle">-</span></div>
+                </div>
+              </div>
+              <div id="chofer-estado" style="margin-top:8px;font-size:0.97em;color:#bfa046;">En camino a tu ubicación...</div>
+              <div style="display:flex;gap:10px;margin-top:12px;">
+                <button type="button" id="finalizar-viaje" style="flex:1;background:#388e3c;color:#fff;font-weight:700;border:none;border-radius:8px;padding:10px 0;cursor:pointer;">Finalizar viaje</button>
+                <button type="button" id="cancelar-viaje" style="flex:1;background:#e53935;color:#fff;font-weight:700;border:none;border-radius:8px;padding:10px 0;cursor:pointer;">Cancelar viaje</button>
+              </div>
+            </div>
+          <style>
+            .chofer-marker {
+              width: 36px;
+              height: 36px;
+              background: url('https://cdn-icons-png.flaticon.com/512/61/61231.png') no-repeat center center / contain;
+              border-radius: 50%;
+              border: 2px solid #bfa046;
+            }
+          </style>
+      <div class="bottom-buttons">
+        <a href="https://linkdenegocio.mx/Luxridesreservas.com" target="_blank">Pagar con Clip</a>
+        <button id="whatsapp-btn" type="button">Confirmar reserva</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Google Maps y Places API -->
+  <div id="map"></div>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCUg6f_AeINCNn8VWU1GDjpjq5_e8A8GvQ&libraries=places"></script>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-analytics.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyDlzuMEutA5yDZLpRG62WEuxBQmi6y_tq0",
+      authDomain: "luxridesreservas-d5102.firebaseapp.com",
+      databaseURL: "https://luxridesreservas-d5102-default-rtdb.firebaseio.com",
+      projectId: "luxridesreservas-d5102",
+      storageBucket: "luxridesreservas-d5102.firebasestorage.app",
+      messagingSenderId: "731425344327",
+      appId: "1:731425344327:web:3ef04d1320750cd6e6da62",
+      measurementId: "G-WM9QYXYKTX"
+    };
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+  </script>
+
+  <script>
+    // --- Mostrar/Ocultar panel ---
+    const panel = document.getElementById('reserva-panel');
+    const mostrarBtn = document.getElementById('mostrar-panel-btn');
+    const minimizarBtn = document.getElementById('minimizar-btn');
+    function mostrarPanel() {
+      panel.style.display = 'block';
+      mostrarBtn.classList.remove('visible');
+    }
+    function ocultarPanel() {
+      panel.style.display = 'none';
+      mostrarBtn.classList.add('visible');
+    }
+    minimizarBtn.addEventListener('click', ocultarPanel);
+    mostrarBtn.addEventListener('click', mostrarPanel);
+    // Mostrar el panel por defecto
+    panel.style.display = 'block';
+    mostrarBtn.classList.remove('visible');
+
+    // --- Hacer el panel movible ---
+    (function() {
+      const panel = document.getElementById('reserva-panel');
+      let isDragging = false, startX, startY, startLeft, startTop;
+      panel.addEventListener('mousedown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'TEXTAREA') return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = panel.offsetLeft;
+        startTop = panel.offsetTop;
+        panel.style.transition = 'none';
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        let dx = e.clientX - startX;
+        let dy = e.clientY - startY;
+        let newLeft = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, startLeft + dx));
+        let newTop = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, startTop + dy));
+        panel.style.left = newLeft + 'px';
+        panel.style.top = newTop + 'px';
+      });
+      document.addEventListener('mouseup', function() {
+        isDragging = false;
+        panel.style.transition = '';
+      });
+    })();
+
+    // --- Google Maps y Autocompletado ---
+    let map, origenAutocomplete, destinoAutocomplete, paradaAutocompletes = [];
+    let paradas = [];
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 19.0436, lng: -98.1986 }, // Puebla
+        zoom: 12,
+        disableDefaultUI: false
+      });
+      // Capa de tráfico
+      const trafficLayer = new google.maps.TrafficLayer();
+      trafficLayer.setMap(map);
+      origenAutocomplete = new google.maps.places.Autocomplete(document.getElementById('origen'), {
+        componentRestrictions: { country: 'mx' },
+        fields: ['place_id', 'geometry', 'name', 'formatted_address']
+      });
+      destinoAutocomplete = new google.maps.places.Autocomplete(document.getElementById('destino'), {
+        componentRestrictions: { country: 'mx' },
+        fields: ['place_id', 'geometry', 'name', 'formatted_address']
+      });
+    }
+    window.initMap = initMap;
+
+    // --- Firebase RTDB para choferes ---
+    let choferesDisponibles = [];
+    let choferesData = {};
+    let choferMarker = null;
+    // Cargar choferes disponibles al inicio
+    import('https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js').then(({ getDatabase, ref, onValue }) => {
+      const db = getDatabase();
+      const choferesRef = ref(db, 'choferes');
+      onValue(choferesRef, (snapshot) => {
+        choferesDisponibles = [];
+        choferesData = snapshot.val() || {};
+        for (const id in choferesData) {
+          const ch = choferesData[id];
+          // Solo choferes disponibles
+          if (ch.estado === 'disponible') {
+            choferesDisponibles.push({ id, ...ch });
+          }
+        }
+      });
+    });
+
+    window.onload = () => {
+      initMap();
+      // Panel visible por defecto
+      panel.style.display = 'block';
+      mostrarBtn.classList.remove('visible');
+      // Si el usuario minimiza, mostrar botón flotante
+      minimizarBtn.addEventListener('click', ocultarPanel);
+      mostrarBtn.addEventListener('click', mostrarPanel);
+      // Permitir cerrar con ESC
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') ocultarPanel();
+      });
+      document.getElementById('tipo-servicio').addEventListener('change', function() {
+        document.getElementById('nota-tiempo').style.display = this.value === 'tiempo' ? 'block' : 'none';
+        document.getElementById('horas-servicio-container').style.display = this.value === 'tiempo' ? 'block' : 'none';
+      });
+      document.getElementById('agregar-parada').onclick = function() {
+        agregarParada();
+      };
+      document.getElementById('paradas-list').addEventListener('click', function(e) {
+        if (e.target.classList.contains('borrar-parada')) {
+          const idx = parseInt(e.target.dataset.idx);
+          paradas.splice(idx, 1);
+          renderParadas();
+        }
+      });
+      // AM/PM
+      document.querySelectorAll('.am-pm-btn').forEach(btn => {
+        btn.onclick = function() {
+          document.querySelectorAll('.am-pm-btn').forEach(b => b.classList.remove('selected'));
+          this.classList.add('selected');
+        };
+      });
+      // Calcular precio
+      document.getElementById('calcular-precio').onclick = function(e) {
+        e.preventDefault();
+        calcularPrecio();
+      };
+      // WhatsApp
+      document.getElementById('whatsapp-btn').onclick = enviarWhatsApp;
+    };
+
+    function agregarParada() {
+      paradas.push("");
+      renderParadas();
+    }
+    function renderParadas() {
+      const list = document.getElementById('paradas-list');
+      list.innerHTML = '';
+      paradas.forEach((p, idx) => {
+        list.innerHTML += `<div class="parada-item"><input class="google-places-input parada" data-idx="${idx}" placeholder="Parada #${idx+1}"><button type="button" class="borrar-parada" data-idx="${idx}">Borrar</button></div>`;
+      });
+      setTimeout(() => {
+        document.querySelectorAll('.parada').forEach((input, idx) => {
+          paradaAutocompletes[idx] = new google.maps.places.Autocomplete(input, {
+            componentRestrictions: { country: 'mx' },
+            fields: ['place_id', 'geometry', 'name', 'formatted_address']
+          });
+        });
+      }, 100);
+    }
+
+    // --- Cálculo de precio (sin asignar chofer) ---
+    let ultimoPrecio = 0;
+    let ultimoTipoVehiculo = '';
+    let ultimaDistancia = 0;
+    // --- Variables para marcadores y ruta ---
+    let origenMarker = null;
+    let destinoMarker = null;
+    let rutaPolyline = null;
+    let paradasMarkers = [];
+
+    function limpiarRutaYMarcadores() {
+      if (origenMarker) { origenMarker.setMap(null); origenMarker = null; }
+      if (destinoMarker) { destinoMarker.setMap(null); destinoMarker = null; }
+      if (rutaPolyline) { rutaPolyline.setMap(null); rutaPolyline = null; }
+      paradasMarkers.forEach(m => m.setMap(null));
+      paradasMarkers = [];
+    }
+
+    function calcularPrecio() {
+      const precioDiv = document.getElementById('precio');
+      precioDiv.innerText = '';
+      const pasajeros = parseInt(document.getElementById('pasajeros').value);
+      let tipoVehiculo = pasajeros > 3 ? 'camioneta' : 'carro';
+      let distancia = Math.floor(Math.random() * 30) + 5; // 5 a 35 km
+      let precio = 0;
+      const origen = document.getElementById('origen').value.trim();
+      const destino = document.getElementById('destino').value.trim();
+
+      // Limpiar marcadores y ruta previos
+      limpiarRutaYMarcadores();
+
+      // Mostrar ruta y marcadores si ambos campos están llenos
+      if (origen && destino) {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address: origen }, function(resultsO, statusO) {
+          if (statusO === 'OK' && resultsO[0]) {
+            const origenLoc = resultsO[0].geometry.location;
+            if (origenMarker) origenMarker.setMap(null);
+            origenMarker = new google.maps.Marker({
+              position: origenLoc,
+              map,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 10,
+                fillColor: '#00c853', // verde
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 2
+              },
+              title: 'Recogida',
+              zIndex: 10
+            });
+            geocoder.geocode({ address: destino }, function(resultsD, statusD) {
+              if (statusD === 'OK' && resultsD[0]) {
+                const destinoLoc = resultsD[0].geometry.location;
+                if (destinoMarker) destinoMarker.setMap(null);
+                destinoMarker = new google.maps.Marker({
+                  position: destinoLoc,
+                  map,
+                  icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 10,
+                    fillColor: '#e53935', // rojo
+                    fillOpacity: 1,
+                    strokeColor: '#fff',
+                    strokeWeight: 2
+                  },
+                  title: 'Destino',
+                  zIndex: 10
+                });
+                // Paradas intermedias
+                let waypoints = [];
+                paradasMarkers.forEach(m => m.setMap(null));
+                paradasMarkers = [];
+                let paradasTxt = paradas.map((_, idx) => {
+                  const val = document.querySelector(`.parada[data-idx='${idx}']`).value.trim();
+                  if (val) waypoints.push({ location: val, stopover: true });
+                  return val;
+                });
+                // Directions
+                const directionsService = new google.maps.DirectionsService();
+                const directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, preserveViewport: true });
+                directionsRenderer.setMap(map);
+                directionsService.route({
+                  origin: origen,
+                  destination: destino,
+                  waypoints: waypoints,
+                  travelMode: google.maps.TravelMode.DRIVING
+                }, function(response, status) {
+                  if (status === 'OK') {
+                    directionsRenderer.setDirections(response);
+                    // Marcar paradas
+                    if (response.routes[0].legs.length > 2) {
+                      for (let i = 1; i < response.routes[0].legs.length - 1; i++) {
+                        const paradaLoc = response.routes[0].legs[i].start_location;
+                        const paradaMarker = new google.maps.Marker({
+                          position: paradaLoc,
+                          map,
+                          icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 8,
+                            fillColor: '#ffd600', // amarillo
+                            fillOpacity: 1,
+                            strokeColor: '#fff',
+                            strokeWeight: 2
+                          },
+                          title: 'Parada',
+                          zIndex: 9
+                        });
+                        paradasMarkers.push(paradaMarker);
+                      }
+                    }
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
+
+      // --- Precio ---
+      const origenLow = origen.toLowerCase();
+      const destinoLow = destino.toLowerCase();
+      if (
+        (origenLow.includes('camino real polanco') &&
+         (destinoLow.includes('terminal 2') || destinoLow.includes('terminal dos')) &&
+         (destinoLow.includes('benito juárez') || destinoLow.includes('aeropuerto') || destinoLow.includes('mexico')))
+      ) {
+        precio = 630;
+        precioDiv.innerText = `Precio especial: $${precio} MXN (Camino Real Polanco → Terminal 2)`;
+        ultimoPrecio = precio;
+        ultimoTipoVehiculo = tipoVehiculo;
+        ultimaDistancia = distancia;
+        return;
+      }
+      if (tipoVehiculo === 'carro') {
+        if (distancia <= 4) precio = 240;
+        else precio = 240 + (distancia - 4) * 30;
+      } else {
+        if (distancia <= 4) precio = 320;
+        else precio = 320 + (distancia - 4) * 45;
+      }
+      precio = Math.round(precio * 0.9);
+      precioDiv.innerText = `Precio estimado: $${precio} MXN (${tipoVehiculo}, ${distancia} km)`;
+      ultimoPrecio = precio;
+      ultimoTipoVehiculo = tipoVehiculo;
+      ultimaDistancia = distancia;
+    }
+
+    // --- Mostrar chofer asignado solo si el despacho lo asigna ---
+    let reservaIdActual = null;
+    function mostrarChoferAsignado(reserva) {
+      const choferDiv = document.getElementById('chofer-asignado');
+      if (!reserva || !reserva.choferId || !choferesData[reserva.choferId]) {
+        choferDiv.style.display = 'none';
+        return;
+      }
+      choferDiv.style.display = 'block';
+      const chofer = choferesData[reserva.choferId];
+      document.getElementById('chofer-nombre').innerText = chofer.nombre || 'Sin nombre';
+      document.getElementById('chofer-auto-detalle').innerText = chofer.auto || (chofer.hotel ? 'Hotel: ' + chofer.hotel : '-');
+      document.getElementById('chofer-placas-detalle').innerText = chofer.placas || '-';
+      document.getElementById('chofer-foto').src = chofer.foto || 'https://cdn-icons-png.flaticon.com/512/194/194938.png';
+      document.getElementById('chofer-estado').innerText = 'En camino a tu ubicación...';
+      mostrarRutaChofer(chofer);
+      // Botones de finalizar/cancelar viaje
+      const finalizarBtn = document.getElementById('finalizar-viaje');
+      const cancelarBtn = document.getElementById('cancelar-viaje');
+      if (finalizarBtn) finalizarBtn.onclick = finalizarViaje;
+      if (cancelarBtn) cancelarBtn.onclick = cancelarViaje;
+    }
+
+    // --- Mostrar ruta y marcador de chofer real ---
+    function mostrarRutaChofer(chofer) {
+      if (!map) return;
+      if (choferMarker) choferMarker.setMap(null);
+      let ubicacionChofer = { lat: 19.0536, lng: -98.2086 }; // Default
+      if (chofer && chofer.ubicacion && chofer.ubicacion.lat && chofer.ubicacion.lng) {
+        ubicacionChofer = { lat: chofer.ubicacion.lat, lng: chofer.ubicacion.lng };
+      }
+      choferMarker = new google.maps.Marker({
+        position: ubicacionChofer,
+        map,
+        icon: {
+          url: 'https://cdn-icons-png.flaticon.com/512/61/61231.png',
+          scaledSize: new google.maps.Size(36, 36)
+        },
+        title: 'Tu chofer',
+        zIndex: 20
+      });
+      // Centrar el mapa entre chofer y origen
+      const origenInput = document.getElementById('origen');
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: origenInput.value }, function(results, status) {
+        if (status === 'OK' && results[0]) {
+          const bounds = new google.maps.LatLngBounds();
+          bounds.extend(ubicacionChofer);
+          bounds.extend(results[0].geometry.location);
+          map.fitBounds(bounds);
+        }
+      });
+    }
+
+    function finalizarViaje() {
+      document.getElementById('chofer-estado').innerText = '¡Viaje finalizado! Gracias por elegirnos.';
+      if (choferMarker) choferMarker.setMap(null);
+    }
+    function cancelarViaje() {
+      document.getElementById('chofer-estado').innerText = 'El viaje ha sido cancelado.';
+      if (choferMarker) choferMarker.setMap(null);
+    }
+
+    // --- Confirmar reserva y guardar en Firebase ---
+    import('https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js').then(({ getDatabase, ref, push, onValue }) => {
+      const db = getDatabase();
+      document.getElementById('confirmar-reserva').onclick = async function() {
+        // Validar campos
+        const usuario = document.getElementById('usuario').value;
+        const tipoServicio = document.getElementById('tipo-servicio').value;
+        const horas = document.getElementById('horas-servicio').value;
+        const origen = document.getElementById('origen').value;
+        const destino = document.getElementById('destino').value;
+        const fecha = document.getElementById('fecha').value;
+        const hora = document.getElementById('hora').value;
+        const ampm = document.querySelector('.am-pm-btn.selected').dataset.value;
+        const pasajeros = document.getElementById('pasajeros').value;
+        let paradasTxt = paradas.map((_, idx) => document.querySelector(`.parada[data-idx='${idx}']`).value).filter(Boolean);
+        if (!usuario || !origen || !destino || !fecha || !hora) {
+          alert('Por favor, completa todos los campos obligatorios.');
+          return;
+        }
+        // Guardar reserva
+        const reservasRef = ref(db, 'reservas');
+        const nuevaReserva = {
+          usuario,
+          tipoServicio,
+          horas,
+          origen,
+          destino,
+          fecha,
+          hora,
+          ampm,
+          pasajeros,
+          paradas: paradasTxt,
+          precio: ultimoPrecio,
+          tipoVehiculo: ultimoTipoVehiculo,
+          distancia: ultimaDistancia,
+          estado: 'pendiente',
+          creadoEn: new Date().toISOString(),
+          choferId: null
+        };
+        const res = await push(reservasRef, nuevaReserva);
+        reservaIdActual = res.key;
+        alert('¡Reserva enviada! El despacho asignará un chofer.');
+        // Escuchar cambios en la reserva para mostrar chofer asignado
+        const miReservaRef = ref(db, 'reservas/' + reservaIdActual);
+        onValue(miReservaRef, (snap) => {
+          const reserva = snap.val();
+          mostrarChoferAsignado(reserva);
+        });
+      };
+    });
+
+    // --- WhatsApp ---
+    function enviarWhatsApp() {
+      const usuario = document.getElementById('usuario').value;
+      const tipoServicio = document.getElementById('tipo-servicio').value;
+      const horas = document.getElementById('horas-servicio').value;
+      const origen = document.getElementById('origen').value;
+      const destino = document.getElementById('destino').value;
+      const fecha = document.getElementById('fecha').value;
+      const hora = document.getElementById('hora').value;
+      const ampm = document.querySelector('.am-pm-btn.selected').dataset.value;
+      const pasajeros = document.getElementById('pasajeros').value;
+      let paradasTxt = paradas.map((_, idx) => document.querySelector(`.parada[data-idx='${idx}']`).value).filter(Boolean).join(' | ');
+      let mensaje = `Reserva Luxrides VIP\nUsuario: ${usuario}\nTipo: ${tipoServicio}\nHoras: ${horas}\nOrigen: ${origen}\nParadas: ${paradasTxt}\nDestino: ${destino}\nFecha: ${fecha}\nHora: ${hora} ${ampm}\nPasajeros: ${pasajeros}`;
+      let url = `https://wa.me/5215527729551?text=${encodeURIComponent(mensaje)}`;
+      window.open(url, '_blank');
+    }
+  </script>
+</body>
+</html>

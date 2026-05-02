@@ -14,7 +14,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
-  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBzrYJajgNzbM9F1qrrHXfNe6UFkVw0fdM&libraries=places"></script>
+  <script src="https://js.stripe.com/v3/"></script>
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCUg6f_AeINCNn8VWU1GDjpjq5_e8A8GvQ&libraries=places"></script>
 
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
@@ -124,9 +125,23 @@
 
     .tab-content::-webkit-scrollbar{width:6px;}
     .tab-content::-webkit-scrollbar-thumb{background:var(--gold);border-radius:4px;}
+
+    /* --- Retiro / Banco --- */
+    .retiro-box{background:var(--card);padding:14px 16px;border-radius:12px;border-left:4px solid var(--ok);margin-top:16px;text-align:left;}
+    .retiro-box>h4{color:var(--ok);margin-bottom:10px;font-size:1rem;display:flex;align-items:center;gap:6px;}
+    .saldo-label{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;}
+    .saldo-display{font-size:2rem;font-weight:800;color:#fff;letter-spacing:-.5px;margin:4px 0 14px;}
+    .banco-info-box{background:#0d0d0d;padding:11px 13px;border-radius:10px;border:1px solid #222;margin-bottom:12px;}
+    .banco-info-box h5{color:var(--gold);font-size:.85rem;margin-bottom:8px;font-weight:700;}
+    .btn-retiro{width:100%;padding:13px;background:var(--ok);color:#050505;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:.96rem;letter-spacing:.04em;}
+    .btn-retiro:disabled{background:#1d2d1d;color:#3a5a3a;cursor:not-allowed;}
+    .retiro-status{font-size:.82rem;color:var(--muted);margin-top:8px;text-align:center;min-height:18px;}
+    .saldo-en-proceso{font-size:.82rem;color:var(--warn);margin-top:2px;}
+    .retiro-seguridad-nota{font-size:.78rem;color:#7dbf7d;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:9px 11px;margin-bottom:12px;line-height:1.5;}
   </style>
 </head>
 <body>
+  
   <div id="login-screen">
     <div class="login-card">
       <h2>LUXRIDES</h2>
@@ -231,6 +246,42 @@
           <button onclick="guardarDatosVehiculo()">Guardar</button>
         </div>
       </div>
+
+      <!-- ===== SALDO Y RETIRO ===== -->
+      <div class="retiro-box">
+        <h4>💳 Mi Saldo & Retiro</h4>
+        <p class="saldo-label">Saldo disponible</p>
+        <div class="saldo-display" id="saldo-display">$0 MXN</div>
+        <p class="saldo-en-proceso" id="saldo-en-proceso" style="display:none;"></p>
+
+        <div class="banco-info-box">
+          <h5>⚡ Tarjeta de débito para retiro instantáneo</h5>
+          <div class="inline-field">
+            <input id="inp-titular" type="text" placeholder="Nombre completo del titular de la cuenta"/>
+          </div>
+          <div class="inline-field" style="margin-top:6px;">
+            <input id="inp-email" type="email" inputmode="email" placeholder="Correo electrónico (para tu cuenta Stripe)"/>
+          </div>
+          <div class="inline-field" style="margin-top:6px;">
+            <input id="inp-banco" type="text" placeholder="Banco (Ej: BBVA, Banamex, HSBC…)"/>
+          </div>
+          <div class="inline-field" style="margin-top:6px;">
+            <input id="inp-card" type="text" inputmode="numeric" maxlength="19" placeholder="Número de tarjeta de débito (Visa / Mastercard)" oninput="formatCardNumber(this)"/>
+          </div>
+          <div class="inline-field" style="margin-top:6px;">
+            <input id="inp-expiry" type="text" inputmode="numeric" maxlength="5" placeholder="Vencimiento MM/AA" style="max-width:110px;" oninput="formatExpiry(this)"/>
+            <button onclick="guardarDatosBanco()">Guardar</button>
+          </div>
+          <p id="banco-guardado" style="color:var(--muted);font-size:.79rem;margin-top:6px;"></p>
+        </div>
+
+        <p class="retiro-seguridad-nota">🔒 <strong>Seguridad de Nivel Bancario:</strong> Tus datos están encriptados y tus pagos garantizados por el protocolo de gestión financiera de LuxRides.</p>
+
+        <button class="btn-retiro" id="btn-solicitar-retiro" onclick="solicitarRetiro()" disabled>
+          Solicitar retiro
+        </button>
+        <p class="retiro-status" id="retiro-status-msg"></p>
+      </div>
     </div>
   </div>
 
@@ -263,6 +314,54 @@
   </div>
 
   <script>
+    // --- Mostrar reservas asignadas a este chofer desde /reservas (web) ---
+    async function cargarMisReservasWeb() {
+      if (!db || !choferID) {
+        document.getElementById('mis-reservas-web').innerHTML = '<div class="empty">Esperando conexión…</div>';
+        return;
+      }
+      try {
+        const snap = await db.ref('reservas').orderByChild('choferId').equalTo(choferID).once('value');
+        const div = document.getElementById('mis-reservas-web');
+        div.innerHTML = '';
+        let count = 0;
+        // Mostrar reservas más recientes primero
+        const reservas = [];
+        snap.forEach(child => reservas.push({ id: child.key, ...child.val() }));
+        reservas.reverse();
+        for (const r of reservas) {
+          count++;
+          div.innerHTML += `
+            <div class="viaje-card" style="margin-bottom:14px;">
+              <span class="status-chip ${r.estado === 'finalizado' ? 'off' : r.estado === 'en viaje' ? 'running' : 'pending'}">${escHtml(r.estado || 'pendiente')}</span>
+              <h3>Reserva web asignada</h3>
+              <p><b>Cliente:</b> ${escHtml(r.usuario || 'Cliente')}</p>
+              <p><b>Origen:</b> ${escHtml(r.origen || '-')}</p>
+              <p><b>Destino:</b> ${escHtml(r.destino || '-')}</p>
+              <p><b>Fecha:</b> ${escHtml(r.fecha || '')} ${escHtml(r.hora || '')} ${escHtml(r.ampm || '')}</p>
+              <p><b>Pasajeros:</b> ${escHtml(r.pasajeros || '')} | <b>Precio:</b> $${escHtml(r.precio || '')}</p>
+            </div>`;
+        }
+        if (count === 0) {
+          div.innerHTML = '<div class="empty">No tienes reservas web asignadas.</div>';
+        }
+      } catch (err) {
+        console.error(err);
+        document.getElementById('mis-reservas-web').innerHTML = '<div class="empty">Error al leer reservas.</div>';
+      }
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Llamar al cargar la app y cuando el chofer inicia sesión
+    setTimeout(() => { if (typeof choferID !== 'undefined' && choferID) cargarMisReservasWeb(); }, 2000);
     const firebaseConfig = {
       apiKey: "AIzaSyDlzuMEutA5yDZLpRG62WEuxBQmi6y_tq0",
       authDomain: "luxridesreservas-d5102.firebaseapp.com",
@@ -278,6 +377,11 @@
     const FCM_VAPID_KEY = 'BHFqapvp0PyXQZTEQEKwIjDGt_KxIb2-gQ3Iu3uDNgz9fdrCH6T1ADyqvIbOSnwuoQEXs2KkB9_ZvUldqIGWpdQ';
 
     const MAX_LOGIN_ATTEMPTS = 2;
+    // ⚠️ Reemplaza con tu clave PÚBLICA de Stripe (pk_live_...)
+    const STRIPE_PK = 'pk_live_51TSJFbRsMQje2ZkMG6tpwzSwf8HsmPkQmP45tH2wXb6CVEsa3sSJMPrFyDyPu4vVQH4OBOVDeMYYqitKLy3DJhfU00Fqd0xLIC';
+    function luhn(n){let s=0,a=false;for(let i=n.length-1;i>=0;i--){let d=parseInt(n[i],10);if(a){d*=2;if(d>9)d-=9;}s+=d;a=!a;}return s%10===0;}
+    function formatCardNumber(el){const v=el.value.replace(/\D/g,'').slice(0,16);el.value=v.replace(/(.{4})/g,'$1 ').trim();}
+    function formatExpiry(el){let v=el.value.replace(/\D/g,'').slice(0,4);if(v.length>=3)v=v.slice(0,2)+'/'+v.slice(2);el.value=v;}
     const LOCK_TIME_MS = 20 * 60 * 1000;
     const GUARD_KEY = 'luxrides_driver_login_guard_v1';
 
@@ -357,12 +461,16 @@
       if (!('serviceWorker' in navigator)) return null;
       if (driverServiceWorkerRegistration) return driverServiceWorkerRegistration;
 
-      try {
-        driverServiceWorkerRegistration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-        return driverServiceWorkerRegistration;
-      } catch (_) {
-        return null;
-      }
+        try {
+          driverServiceWorkerRegistration = await navigator.serviceWorker.register('./choferes-messaging-sw.js');
+          // Precachear sonidos al instalar
+          if (driverServiceWorkerRegistration.active) {
+            driverServiceWorkerRegistration.active.postMessage({ type: 'CACHE_NOTIFICATION_SOUNDS' });
+          }
+          return driverServiceWorkerRegistration;
+        } catch (_) {
+          return null;
+        }
     }
 
     function construirViajeDesdePayload(payload) {
@@ -795,6 +903,7 @@
         iniciarRastreoUbicacion();
         iniciarHeartbeatChofer();
         initMapaLive();
+        cargarSaldoChofer();
       } catch (err) {
         console.error(err);
         showError('Error al iniciar: ' + err.message);
@@ -1726,6 +1835,223 @@
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+    }
+
+    // =====================================================================
+    // SALDO Y RETIRO
+    // =====================================================================
+
+    function cargarSaldoChofer() {
+      if (!choferID) return;
+
+      // Saldo disponible en tiempo real
+      db.ref('choferes/' + choferID + '/saldo_disponible').on('value', snap => {
+        const saldo = Number(snap.val() || 0);
+        const displayEl = document.getElementById('saldo-display');
+        const btnEl = document.getElementById('btn-solicitar-retiro');
+        if (displayEl) displayEl.innerText = '$' + saldo.toLocaleString('es-MX') + ' MXN';
+        if (btnEl) btnEl.disabled = saldo <= 0;
+      });
+
+      // Saldo en proceso de transferencia
+      db.ref('choferes/' + choferID + '/saldo_en_proceso').on('value', snap => {
+        const enProceso = Number(snap.val() || 0);
+        const el = document.getElementById('saldo-en-proceso');
+        if (!el) return;
+        if (enProceso > 0) {
+          el.style.display = 'block';
+          el.innerText = '⏳ En proceso de pago: $' + enProceso.toLocaleString('es-MX') + ' MXN';
+        } else {
+          el.style.display = 'none';
+        }
+      });
+
+      // Datos bancarios guardados
+      db.ref('choferes/' + choferID + '/banco').once('value').then(snap => {
+        const banco = snap.val() || {};
+        const inpTitular = document.getElementById('inp-titular');
+        const inpEmail   = document.getElementById('inp-email');
+        const inpBanco   = document.getElementById('inp-banco');
+        const guardadoEl = document.getElementById('banco-guardado');
+        if (inpTitular && banco.titular) inpTitular.value = banco.titular;
+        if (inpEmail   && banco.email)   inpEmail.value   = banco.email;
+        if (inpBanco   && banco.nombre)  inpBanco.value   = banco.nombre;
+        if (guardadoEl && banco.stripeCardId) {
+          guardadoEl.style.color = 'var(--ok)';
+          guardadoEl.innerText = '✅ ' + (banco.titular || '') + '  ·  ' + (banco.nombre || '') + '  ·  •••• •••• •••• ' + (banco.cardLast4 || '????') + '  exp: ' + (banco.cardExpMonth || '--') + '/' + (banco.cardExpYear || '--');
+        }
+      }).catch(() => {});
+    }
+
+    async function guardarDatosBanco() {
+      const titular = (document.getElementById('inp-titular').value || '').trim();
+      const email   = (document.getElementById('inp-email').value   || '').trim().toLowerCase();
+      const nombre  = (document.getElementById('inp-banco').value   || '').trim();
+      const cardRaw = (document.getElementById('inp-card').value    || '').replace(/\s/g, '');
+      const expiry  = (document.getElementById('inp-expiry').value  || '').trim();
+
+      if (!titular) { alert('Escribe tu nombre completo como titular.'); return; }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Escribe un correo electrónico válido.'); return; }
+      if (!nombre)  { alert('Escribe el banco emisor de tu tarjeta.'); return; }
+      if (!/^\d{16}$/.test(cardRaw)) { alert('El número de tarjeta debe tener 16 dígitos.'); return; }
+      const expParts = expiry.split('/');
+      if (expParts.length !== 2 || expParts[0].length !== 2 || expParts[1].length !== 2) { alert('El vencimiento debe tener formato MM/AA.'); return; }
+      const expMonth = parseInt(expParts[0], 10);
+      const expYear  = 2000 + parseInt(expParts[1], 10);
+      if (expMonth < 1 || expMonth > 12) { alert('Mes de vencimiento inválido (01–12).'); return; }
+      if (!luhn(cardRaw)) { alert('El número de tarjeta no es válido. Verifícalo.'); return; }
+
+      const guardadoEl = document.getElementById('banco-guardado');
+      try {
+        if (guardadoEl) { guardadoEl.style.color = 'var(--muted)'; guardadoEl.innerText = '⏳ Registrando tarjeta con Stripe…'; }
+
+        // Tokenizar con Stripe.js — datos de tarjeta NUNCA tocan nuestro servidor
+        const stripeJS = Stripe(STRIPE_PK);
+        const { token, error: stripeErr } = await stripeJS.createToken('card', {
+          number: cardRaw, exp_month: expMonth, exp_year: expYear,
+          currency: 'mxn', name: titular
+        });
+        if (stripeErr) {
+          if (guardadoEl) guardadoEl.innerText = '';
+          alert('Stripe: ' + stripeErr.message); return;
+        }
+
+        // Llamar la Cloud Function para registrar la tarjeta en Stripe Connect
+        const resp = await fetch(
+          'https://us-central1-luxridesreservas-d5102.cloudfunctions.net/registrarTarjetaChofer',
+          { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ choferId: choferID, choferNombre, titular, email, nombre,
+              cardToken: token.id, cardLast4: cardRaw.slice(-4),
+              cardExpMonth: String(expMonth).padStart(2,'0'), cardExpYear: String(expYear) }) }
+        );
+        const result = await resp.json();
+        if (!result.ok) {
+          if (guardadoEl) guardadoEl.innerText = '';
+          alert('Error al registrar tarjeta: ' + (result.error || 'Intenta de nuevo.')); return;
+        }
+
+        // Guardar en Firebase (solo last4 e IDs — nunca el número completo)
+        await db.ref('choferes/' + choferID + '/banco').set({
+          titular, email, nombre,
+          cardLast4: cardRaw.slice(-4),
+          cardExpMonth: String(expMonth).padStart(2,'0'),
+          cardExpYear: String(expYear),
+          stripeCardId: result.cardId,
+          actualizadoEn: new Date().toISOString()
+        });
+        if (guardadoEl) {
+          guardadoEl.style.color = 'var(--ok)';
+          guardadoEl.innerText = '✅ ' + titular + '  ·  ' + nombre + '  ·  •••• •••• •••• ' + cardRaw.slice(-4) + '  exp: ' + String(expMonth).padStart(2,'0') + '/' + String(expYear);
+        }
+        alert('¡Tarjeta registrada! Ya puedes solicitar retiros instantáneos.');
+      } catch (err) {
+        console.error(err);
+        if (guardadoEl) guardadoEl.innerText = '';
+        alert('No se pudo registrar la tarjeta. Verifica tu conexión e intenta de nuevo.');
+      }
+    }
+
+    async function solicitarRetiro() {
+      // Leer saldo actual desde Firebase (fuente de verdad)
+      const saldoSnap = await db.ref('choferes/' + choferID + '/saldo_disponible').once('value');
+      const saldoActual = Number(saldoSnap.val() || 0);
+
+      if (saldoActual <= 0) {
+        alert('¡No tienes saldo disponible para retirar!');
+        return;
+      }
+
+      // Verificar que tenga CLABE registrada
+      const bancoSnap = await db.ref('choferes/' + choferID + '/banco').once('value');
+      const banco = bancoSnap.val() || {};
+      if (!banco.titular) {
+        alert('Primero guarda tu nombre completo como titular en la sección de datos bancarios.');
+        return;
+      }
+      if (!banco.clabe || !/^\d{18}$/.test(banco.clabe)) {
+        alert('Primero guarda tu CLABE interbancaria (18 dígitos) en la sección de datos bancarios.');
+        return;
+      }
+
+      const montoFmt = '$' + saldoActual.toLocaleString('es-MX') + ' MXN';
+      if (!confirm(
+        '¿Confirmas el retiro por ' + montoFmt + '?\n\n' +
+        'Titular: ' + banco.titular + '\n' +
+        'Banco: ' + (banco.nombre || 'Sin especificar') + '\n' +
+        'CLABE: ' + banco.clabe + '\n\n' +
+        'El pago se procesará automáticamente vía Stripe.'
+      )) return;
+
+      const btn = document.getElementById('btn-solicitar-retiro');
+      const msgEl = document.getElementById('retiro-status-msg');
+
+      try {
+        if (btn) btn.disabled = true;
+        if (msgEl) { msgEl.style.color = 'var(--muted)'; msgEl.innerText = '⏳ Enviando solicitud…'; }
+
+        // 1. Registrar solicitud en /solicitudes_retiro y obtener referencia
+        const nuevaRef = db.ref('solicitudes_retiro').push();
+        await nuevaRef.set({
+          choferId: choferID,
+          choferNombre: choferNombre,
+          monto: saldoActual,
+          banco: banco.nombre || '',
+          titular: banco.titular || '',
+          email: banco.email || '',
+          stripeCardId: banco.stripeCardId,
+          cardLast4: banco.cardLast4 || '',
+          fecha: new Date().toISOString(),
+          status: 'pendiente'
+        });
+
+        // 2. Mover saldo disponible → en proceso para evitar doble retiro
+        await db.ref('choferes/' + choferID).update({
+          saldo_disponible: 0,
+          saldo_en_proceso: saldoActual,
+          ultimo_retiro_solicitado_en: new Date().toISOString()
+        });
+
+        if (msgEl) { msgEl.style.color = 'var(--muted)'; msgEl.innerText = '⏳ Procesando pago con Stripe…'; }
+
+        // 3. Escuchar el resultado en tiempo real desde la Cloud Function
+        let statusListener = null;
+        const timeoutId = setTimeout(() => {
+          if (statusListener) nuevaRef.off('value', statusListener);
+          if (msgEl) { msgEl.style.color = 'var(--warn)'; msgEl.innerText = '⚠️ Tardando más de lo usual. Verifica tu saldo en unos minutos.'; }
+        }, 90000);
+
+        statusListener = nuevaRef.on('value', (snap) => {
+          const data = snap.val();
+          if (!data) return;
+
+          if (data.status === 'en_proceso') {
+            if (msgEl) { msgEl.style.color = 'var(--muted)'; msgEl.innerText = '⏳ Transfiriendo fondos vía Stripe…'; }
+
+          } else if (data.status === 'pagado') {
+            clearTimeout(timeoutId);
+            nuevaRef.off('value', statusListener);
+            if (msgEl) {
+              msgEl.style.color = 'var(--ok)';
+              msgEl.innerText = '✅ ¡Pago enviado! Llegará a tu tarjeta en minutos.';
+            }
+            // El saldo ya es 0, el botón queda deshabilitado correctamente
+
+          } else if (data.status === 'error') {
+            clearTimeout(timeoutId);
+            nuevaRef.off('value', statusListener);
+            if (msgEl) {
+              msgEl.style.color = 'var(--bad)';
+              msgEl.innerText = '❌ Error al procesar: ' + (data.error || 'Intenta de nuevo.');
+            }
+            // La Cloud Function restaura el saldo; el listener de saldo reactiva el botón
+          }
+        });
+
+      } catch (err) {
+        console.error('Error al solicitar retiro:', err);
+        if (btn) btn.disabled = false;
+        if (msgEl) { msgEl.style.color = 'var(--bad)'; msgEl.innerText = '❌ Error al enviar la solicitud. Intenta de nuevo.'; }
+      }
     }
   </script>
 </body>

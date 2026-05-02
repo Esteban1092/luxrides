@@ -11,32 +11,48 @@ html, body{width:100%;height:100%;margin:0;padding:0;}
 :root{
   --gold:#D4AF37;--gold-hover:#F3E5AB;--green:#22C55E;--red:#EF4444;
   --bg:#f8f8f8;--card:#ffffff;--border:rgba(0,0,0,0.12);
-  --fg:#1a1a1a;--muted:rgba(0,0,0,0.6);--glass:rgba(255,255,255,0.95);
+  --fg:#1a1a1a;--muted:rgba(0,0,0,0.6);--glass:rgba(255,255,255,0.97);
+  --shadow:0 8px 32px rgba(0,0,0,0.18);
 }
-body{background:var(--bg);color:var(--fg);font-family:'Outfit',sans-serif;width:100%;height:100%;margin:0;padding:0;overflow:hidden;}
+#map{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;background:#e8f4f8;}
+body{background:var(--bg);color:var(--fg);font-family:'Outfit',sans-serif;width:100vw;height:100vh;margin:0;padding:0;overflow:hidden;}
 #map{position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;background:#e8f4f8;}
 #panel{
-  position:fixed;z-index:1000;
-  bottom:0;left:0;right:0;
-  max-height:62vh;border-radius:16px 16px 0 0;
-  background:var(--glass);backdrop-filter:blur(24px);
-  border:1px solid var(--border);border-bottom:none;
-  overflow-y:auto;overflow-x:hidden;
-  transition:max-height .3s ease;
+  position:fixed;
+  z-index:1000;
+  left:50%;
+  bottom:24px;
+  transform:translateX(-50%);
+  width:95vw;
+  max-width:420px;
+  max-height:90vh;
+  border-radius:22px;
+  background:var(--glass);
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(24px);
+  border:1.5px solid var(--border);
+  overflow-y:auto;
+  overflow-x:hidden;
+  transition:max-height .3s, box-shadow .3s;
 }
 @media(min-width:768px){
   #panel{
-    position:absolute;top:24px;left:24px;
-    width:420px;max-height:calc(100vh - 48px);
-    border-radius:0;border:1px solid var(--border);
+    position:absolute;
+    top:32px;
+    left:50%;
+    transform:translateX(-50%);
+    width:420px;
+    max-height:calc(100vh - 64px);
+    border-radius:22px;
+    box-shadow:var(--shadow);
     cursor: grab;
   }
 }
 #panel::-webkit-scrollbar{width:5px;}
 #panel::-webkit-scrollbar-track{background:transparent;}
 #panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px;}
-.inner{padding:24px;}
-@media(min-width:768px){.inner{padding:28px;}}
+.inner{padding:20px 10px 24px 10px;}
+@media(min-width:480px){.inner{padding:28px 24px 32px 24px;}}
 .drag-handle{display:block;width:40px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:10px auto 0;}
 @media(min-width:768px){.drag-handle{display:none;}}
 .brand{text-align:center;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border);}
@@ -180,6 +196,11 @@ select{padding-left:12px;padding-right:12px;}
       <p>Transporte Ejecutivo VIP Nacional</p>
     </div>
 
+    <div class="service-note" style="background:rgba(239,68,68,0.10);border:1.5px solid #EF4444;color:#991b1b;font-weight:600;margin-bottom:18px;">
+      <b>IMPORTANTE:</b> La asignación de su conductor se realizará durante el proceso de pago.<br>
+      Agradecemos incluir el nombre del usuario en el concepto del pago.
+    </div>
+
     <div class="status-row">
       <span id="status-maps" class="status-pill">Mapas: iniciando...</span>
       <span id="status-firebase" class="status-pill">Firebase: iniciando...</span>
@@ -291,10 +312,10 @@ select{padding-left:12px;padding-right:12px;}
           <input type="number" id="inp-hora" min="1" max="12" value="9"/>
           <span class="time-colon">:</span>
           <input type="number" id="inp-min" min="0" max="59" value="00"/>
-          <div class="ampm-wrap">
-            <button type="button" class="btn-ampm active" id="btn-am" onclick="setAmpm('AM')">AM</button>
-            <button type="button" class="btn-ampm" id="btn-pm" onclick="setAmpm('PM')">PM</button>
-          </div>
+        </div>
+        <div class="ampm-wrap" style="display:flex;justify-content:center;gap:16px;margin-top:10px;">
+          <button type="button" class="btn-ampm active" id="btn-am" onclick="setAmpm('AM')" style="font-size:1.1rem;padding:13px 28px;background:#fff;border:2px solid var(--gold);color:var(--gold);border-radius:8px;box-shadow:0 2px 8px rgba(212,175,55,0.08);font-weight:700;">AM</button>
+          <button type="button" class="btn-ampm" id="btn-pm" onclick="setAmpm('PM')" style="font-size:1.1rem;padding:13px 28px;background:#fff;border:2px solid var(--gold);color:var(--gold);border-radius:8px;box-shadow:0 2px 8px rgba(212,175,55,0.08);font-weight:700;">PM</button>
         </div>
       </div>
     </div>
@@ -378,7 +399,7 @@ select{padding-left:12px;padding-right:12px;}
 <script>
 // Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyDlzuMEutA5yDZLpRG62WEuxBQmi6y_tq0",
+  apiKey: "AIzaSyCUg6f_AeINCNn8VWU1GDjpjq5_e8A8GvQ",
   authDomain: "luxridesreservas-d5102.firebaseapp.com",
   databaseURL: "https://luxridesreservas-d5102-default-rtdb.firebaseio.com",
   projectId: "luxridesreservas-d5102",
@@ -462,7 +483,7 @@ let choferRouteBusy = false;
 let origenTrackMarker = null;
 let choferRutaRefreshTimer = null;
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyB4R4P2AkHkhri6A7D7aIsWN-jswG19Y6o';
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCUg6f_AeINCNn8VWU1GDjpjq5_e8A8GvQ';
 window.GOOGLE_MAPS_API_KEY = GOOGLE_MAPS_API_KEY;
 const WHATSAPP_CENTRAL = '+525527729551';
 const CLIP_PAYMENT_URL = 'https://clip.mx/@Luxridesreservas.com';
@@ -1591,7 +1612,7 @@ async function guardarReserva(){
   const salidaVuelo = document.getElementById('inp-vuelo-salida').value.trim();
   const numeroCliente = document.getElementById('inp-cliente-num').value.trim();
 
-  // Leer referencia de concierge (NFC) — solo válida si escaneó la tarjeta hace menos de 2 horas
+  // Leer referencia de concierge SOLO desde NFC (localStorage)
   let conciergeCode = null;
   const CONCIERGE_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 horas
   try {
@@ -1637,7 +1658,8 @@ async function guardarReserva(){
     calificacion_cliente: null,
     opinion_cliente: '',
     estado: 'Pendiente',
-    concierge_code: conciergeCode,
+    // concierge_code solo si viene del NFC
+    ...(conciergeCode ? { concierge_code: conciergeCode } : {}),
     cliente_fcm_token: clientFcmToken || null,
     cliente_fcm_updated: clientFcmToken ? new Date().toISOString() : null
   };

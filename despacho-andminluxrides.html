@@ -455,7 +455,7 @@ let despachoPushReady = false;
 let ultimoConteoClientes = 0;
 let reservaEstadosPrevios = {};
 const FCM_VAPID_KEY = 'BHFqapvp0PyXQZTEQEKwIjDGt_KxIb2-gQ3Iu3uDNgz9fdrCH6T1ADyqvIbOSnwuoQEXs2KkB9_ZvUldqIGWpdQ';
-const GOOGLE_MAPS_API_KEY = 'AIzaSyB4R4P2AkHkhri6A7D7aIsWN-jswG19Y6o';
+const GOOGLE_MAPS_API_KEY = 'AIzaSyCUg6f_AeINCNn8VWU1GDjpjq5_e8A8GvQ';
 const PUSH_ENDPOINT_URL = window.LUXRIDES_PUSH_ENDPOINT || '';
 const PUSH_ENDPOINT_TOKEN = window.LUXRIDES_PUSH_ENDPOINT_TOKEN || '';
 
@@ -1062,7 +1062,7 @@ async function cargarMapaChoferes() {
 
   await new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
     script.async = true;
     script.defer = true;
     script.onload = resolve;

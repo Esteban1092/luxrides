@@ -268,7 +268,7 @@ const loadScript = (src) => new Promise((resolve, reject) => {
       const data = JSON.parse(saved);
       if (data && data.code) {
         // Verificar que el concierge sigue existiendo y activo
-        const snap = await db.ref('concierges/' + data.code).once('value');
+        const snap = await db.ref('conserjes/' + data.code).once('value');
         if (snap.exists() && snap.val().estado !== 'Inactivo') {
           showDashboard(data.code);
         } else {
@@ -290,36 +290,31 @@ async function loginConcierge() {
   const pass = document.getElementById('inp-pass').value;
   const errEl = document.getElementById('login-error');
   errEl.textContent = '';
-  console.log('[LOGIN] Intentando login con código:', code);
 
   if (!code) { errEl.textContent = 'Ingresa tu código.'; return; }
   if (!pass) { errEl.textContent = 'Ingresa tu contraseña.'; return; }
-  if (!firebaseReady || !db) { errEl.textContent = 'Firebase no disponible. Intenta de nuevo.'; console.error('[LOGIN] Firebase no disponible', { firebaseReady, db }); return; }
+  if (!firebaseReady || !db) { errEl.textContent = 'Firebase no disponible. Intenta de nuevo.'; return; }
 
   // Verificar que el concierge existe y la contraseña coincide
   try {
     const snap = await db.ref('concierges/' + code).once('value');
     if (!snap.exists()) {
       errEl.textContent = 'Código no encontrado. Contacta al administrador.';
-      console.warn('[LOGIN] Código no encontrado:', code);
       return;
     }
     const data = snap.val() || {};
     if (data.estado === 'Inactivo') {
       errEl.textContent = 'Tu cuenta está inactiva. Contacta al administrador.';
-      console.warn('[LOGIN] Cuenta inactiva:', code);
       return;
     }
     if (data.password !== pass) {
       errEl.textContent = 'Contraseña incorrecta.';
-      console.warn('[LOGIN] Contraseña incorrecta para:', code);
       return;
     }
     sessionStorage.setItem('luxrides_concierge_session', JSON.stringify({ code }));
-    console.log('[LOGIN] Login exitoso, mostrando dashboard para:', code);
     showDashboard(code);
   } catch (e) {
-    console.error('[LOGIN] Error al verificar código:', e);
+    console.error(e);
     errEl.textContent = 'Error al verificar código.';
   }
 }
@@ -332,20 +327,17 @@ function logoutConcierge() {
 
 // ─── Dashboard ───
 async function showDashboard(code) {
-  console.log('[DASHBOARD] Entrando a showDashboard con code:', code, 'db:', db);
   if (!db) {
     // Firebase no disponible, volver al login
     sessionStorage.removeItem('luxrides_concierge_session');
     document.getElementById('login-section').style.display = '';
     document.getElementById('login-error').textContent = 'Error de conexión. Intenta de nuevo.';
-    console.error('[DASHBOARD] Firebase no disponible en showDashboard');
     return;
   }
 
   document.getElementById('login-section').style.display = 'none';
   const dash = document.getElementById('dashboard');
   dash.style.display = '';
-  console.log('[DASHBOARD] Dashboard visible');
 
   // Concierge info
   let nombre = code;
@@ -355,10 +347,7 @@ async function showDashboard(code) {
     const info = infoSnap.val() || {};
     nombre = info.nombre || code;
     hotel = info.hotel || '';
-    console.log('[DASHBOARD] Concierge info:', info);
-  } catch (e) {
-    console.error('[DASHBOARD] Error obteniendo info del concierge:', e);
-  }
+  } catch (_) {}
 
   document.getElementById('dash-name').textContent = nombre;
   document.getElementById('dash-hotel').textContent = hotel ? 'Hotel: ' + hotel : '';
@@ -368,12 +357,7 @@ async function showDashboard(code) {
   document.getElementById('nfc-url').textContent = baseUrl + 'luxrides-concierge.html?c=' + encodeURIComponent(code);
 
   // Cargar comisiones en tiempo real
-  try {
-    loadCommissions(code);
-    console.log('[DASHBOARD] loadCommissions llamado');
-  } catch (e) {
-    console.error('[DASHBOARD] Error llamando loadCommissions:', e);
-  }
+  loadCommissions(code);
 }
 
 function loadCommissions(code) {
@@ -430,10 +414,14 @@ function renderCommissions(data) {
   const tbody = document.getElementById('commissions-body');
   const emptyEl = document.getElementById('empty-state');
   tbody.innerHTML = '';
+  console.log('[DEBUG] renderCommissions llamada. Data:', data);
 
-  if (!data) {
+  if (!data || Object.keys(data).length === 0) {
     emptyEl.style.display = '';
+    tbody.innerHTML = '';
     updateStats(0, 0, 0);
+    // Forzar mensaje visible
+    console.log('[DEBUG] No hay datos de reservas para este concierge. Mostrando mensaje vacío.');
     return;
   }
 

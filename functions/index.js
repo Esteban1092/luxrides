@@ -2,6 +2,7 @@ const admin = require('firebase-admin');
 const logger = require('firebase-functions/logger');
 const { onValueCreated, onValueWritten } = require('firebase-functions/v2/database');
 const { onRequest } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 
 admin.initializeApp();
 
@@ -315,3 +316,203 @@ exports.notificarCambioReserva = onValueWritten('/reservas/{reservaId}', async (
     logger.error('Error enviando push al despacho', { error: err?.message });
   }
 });
+
+// =====================================================================
+// RETIROS AUTOMÁTICOS CON STRIPE
+// =====================================================================
+
+const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
+
+// ── Registrar tarjeta de débito del chofer en Stripe Connect ──
+exports.registrarTarjetaChofer = onRequest(
+  { secrets: [stripeSecretKey] },
+  async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'Method Not Allowed' }); return; }
+
+    const { choferId, choferNombre, titular, email, nombre, cardToken, cardLast4, cardExpMonth, cardExpYear } = req.body || {};
+
+    if (!choferId || !cardToken) {
+      res.status(400).json({ ok: false, error: 'Faltan datos requeridos.' }); return;
+    }
+
+    const stripe = require('stripe')(stripeSecretKey.value());
+    try {
+      // 1. Obtener o crear cuenta Stripe Connect
+      let stripeAccountId;
+      const stripeSnap = await db.ref('choferes/' + choferId + '/stripeAccountId').once('value');
+      stripeAccountId = stripeSnap.val();
+
+      if (!stripeAccountId) {
+        const nameParts = (choferNombre || 'Chofer LuxRides').split(' ');
+        const account = await stripe.accounts.create({
+          type: 'custom',
+          country: 'MX',
+          email: email || undefined,
+          capabilities: { transfers: { requested: true } },
+          business_type: 'individual',
+          individual: {
+            first_name: nameParts[0] || 'Chofer',
+            last_name: nameParts.slice(1).join(' ') || 'LuxRides',
+            email: email || undefined
+          },
+          tos_acceptance: { service_agreement: 'recipient' },
+          metadata: { choferId, choferNombre: choferNombre || '', email: email || '' }
+        });
+        stripeAccountId = account.id;
+        await db.ref('choferes/' + choferId).update({
+          stripeAccountId,
+          stripeAccountCreadoEn: new Date().toISOString()
+        });
+        logger.info('Cuenta Stripe Connect creada', { choferId, stripeAccountId });
+      }
+
+      // 2. Eliminar tarjeta anterior con el mismo last4 (evitar duplicados)
+      const existing = await stripe.accounts.listExternalAccounts(
+        stripeAccountId, { object: 'card', limit: 20 }
+      );
+      const dup = existing.data.find(c => c.last4 === cardLast4);
+      if (dup) {
+        await stripe.accounts.deleteExternalAccount(stripeAccountId, dup.id);
+        logger.info('Tarjeta duplicada eliminada', { choferId, dupId: dup.id });
+      }
+
+      // 3. Agregar nueva tarjeta via token
+      const card = await stripe.accounts.createExternalAccount(stripeAccountId, {
+        external_account: cardToken
+      });
+
+      logger.info('Tarjeta de débito registrada en Stripe', { choferId, cardId: card.id, last4: card.last4 });
+      res.status(200).json({ ok: true, cardId: card.id, stripeAccountId });
+
+    } catch (err) {
+      logger.error('Error registrando tarjeta', { choferId, error: err?.message, code: err?.code });
+      res.status(500).json({ ok: false, error: err?.message || 'Error registrando tarjeta.' });
+    }
+  }
+);
+
+exports.procesarSolicitudRetiro = onValueCreated(
+  { ref: '/solicitudes_retiro/{solicitudId}', secrets: [stripeSecretKey] },
+  async (event) => {
+    const solicitud = event.data.val();
+    const solicitudId = event.params.solicitudId;
+    const ref = db.ref('solicitudes_retiro/' + solicitudId);
+
+    const { choferId, choferNombre, titular, email, monto, stripeCardId, cardLast4, banco } = solicitud || {};
+
+    if (!choferId || !monto || !stripeCardId) {
+      logger.warn('Solicitud de retiro con datos incompletos', { solicitudId });
+      await ref.update({
+        status: 'error',
+        error: 'Datos incompletos: falta choferId, monto o tarjeta registrada.',
+        errorEn: new Date().toISOString()
+      });
+      return;
+    }
+
+    const stripe = require('stripe')(stripeSecretKey.value());
+
+    try {
+      await ref.update({
+        status: 'en_proceso',
+        procesadoEn: new Date().toISOString()
+      });
+
+      // 1. Obtener stripeAccountId (ya creado en registrarTarjetaChofer)
+      const stripeSnap = await db.ref('choferes/' + choferId + '/stripeAccountId').once('value');
+      const stripeAccountId = stripeSnap.val();
+
+      if (!stripeAccountId) {
+        throw new Error('El chofer no tiene cuenta Stripe. Debe registrar su tarjeta primero.');
+      }
+
+      // 2. Usar el stripeCardId ya registrado
+      const bankAccountId = stripeCardId;
+
+      // 3. Transferir desde la cuenta de la plataforma → cuenta Connect del chofer
+      const transfer = await stripe.transfers.create({
+        amount: Math.round(monto * 100),
+        currency: 'mxn',
+        destination: stripeAccountId,
+        transfer_group: solicitudId,
+        metadata: { solicitudId, choferId, banco: banco || '', cardLast4: cardLast4 || '' }
+      });
+
+      logger.info('Transferencia Stripe creada', { solicitudId, choferId, monto, transferId: transfer.id });
+
+      // 4. Payout instantáneo → tarjeta de débito del chofer
+      const payout = await stripe.payouts.create(
+        {
+          amount: Math.round(monto * 100),
+          currency: 'mxn',
+          destination: bankAccountId,
+          method: 'instant',
+          statement_descriptor: 'LUXRIDES PAGO',
+          metadata: { solicitudId, choferId, cardLast4: cardLast4 || '' }
+        },
+        { stripeAccount: stripeAccountId }
+      );
+
+      logger.info('Payout instantáneo a tarjeta creado', { solicitudId, choferId, payoutId: payout.id });
+
+      // 5. Marcar como pagado en Firebase
+      await ref.update({
+        status: 'pagado',
+        stripeAccountId,
+        stripeTransferId: transfer.id,
+        stripePayoutId: payout.id,
+        payoutMethod: 'instant',
+        pagadoEn: new Date().toISOString()
+      });
+
+      // 6. Limpiar saldo en proceso del chofer
+      await db.ref('choferes/' + choferId).update({
+        saldo_en_proceso: 0,
+        ultimo_pago_en: new Date().toISOString(),
+        ultimo_stripe_transfer: transfer.id
+      });
+
+    } catch (error) {
+      const errorMsg = error?.message || 'Error desconocido al procesar el pago';
+      const stripeCode = error?.code || '';
+
+      logger.error('Error procesando retiro con Stripe', {
+        solicitudId,
+        choferId,
+        errorMsg,
+        stripeCode
+      });
+
+      await ref.update({
+        status: 'error',
+        error: errorMsg,
+        stripeCode,
+        errorEn: new Date().toISOString()
+      });
+
+      // Restaurar saldo disponible desde en_proceso al producirse un error
+      try {
+        const choferRef = db.ref('choferes/' + choferId);
+        const choferSnap = await choferRef.once('value');
+        const choferData = choferSnap.val() || {};
+        const enProceso = Number(choferData.saldo_en_proceso || 0);
+        if (enProceso > 0) {
+          await choferRef.update({
+            saldo_disponible: Number(choferData.saldo_disponible || 0) + enProceso,
+            saldo_en_proceso: 0
+          });
+          logger.info('Saldo restaurado al chofer por error en Stripe', { choferId, enProceso });
+        }
+      } catch (restoreErr) {
+        logger.error('Error restaurando saldo del chofer', {
+          choferId,
+          error: restoreErr?.message
+        });
+      }
+    }
+  }
+);
