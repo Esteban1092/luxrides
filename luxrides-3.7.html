@@ -2053,15 +2053,30 @@ async function finalizarViajeCliente(){
   if (!reservaActivaId || !db) return;
   if (!confirm('¿Confirmas que llegaste a tu destino?')) return;
   try {
-    await db.ref('reservas/' + reservaActivaId).update({
+    const snap = await db.ref('reservas/' + reservaActivaId).once('value');
+    const r = snap.val() || {};
+    const choferYaFinalizo = r.chofer_finalizo === true;
+
+    const update = {
       cliente_finalizo: true,
       cliente_finalizo_en: new Date().toISOString()
-    });
+    };
+
+    // Si el chofer ya confirmó → marcar completado directamente
+    if (choferYaFinalizo) {
+      update.estado = 'completado';
+    }
+
+    await db.ref('reservas/' + reservaActivaId).update(update);
 
     const btnFin = document.getElementById('btn-finalizar-viaje');
     if (btnFin) btnFin.style.display = 'none';
 
-    alert('✅ Gracias por usar LuxRides.');
+    if (!choferYaFinalizo) {
+      alert('✅ Gracias por confirmar.\n\nTu chofer aún no ha confirmado. El viaje se cerrará cuando él también finalice.');
+    } else {
+      alert('✅ Viaje finalizado. ¡Gracias por usar LuxRides!');
+    }
   } catch(e) {
     alert('No se pudo finalizar. Intenta de nuevo.');
   }
@@ -2661,13 +2676,18 @@ function iniciarSeguimientoCliente(reservaId){
       renderRutaChofer();
     }
 
-    // Mostrar botón Finalizar Viaje solo cuando el viaje está en curso
+    // Mostrar botón Finalizar Viaje cuando está en curso O cuando el chofer ya confirmó y espera al cliente
     const btnFin = document.getElementById('btn-finalizar-viaje');
     if (btnFin) {
-      const mostrarBtn = (estado === 'en curso' || estado === 'en_curso');
+      const mostrarBtn = (estado === 'en curso' || estado === 'en_curso' || estado === 'esperando_cliente');
       btnFin.style.display = mostrarBtn ? 'block' : 'none';
-      btnFin.textContent = '✅ Finalizar Viaje';
-      btnFin.style.background = '#22C55E';
+      if (estado === 'esperando_cliente') {
+        btnFin.textContent = '✅ Tu chofer ya confirmó — Confirma tú también';
+        btnFin.style.background = '#F59E0B';
+      } else {
+        btnFin.textContent = '✅ Finalizar Viaje';
+        btnFin.style.background = '#22C55E';
+      }
     }
 
     if (estado === 'completado' || estado === 'cancelado') {
