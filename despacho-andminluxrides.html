@@ -414,10 +414,10 @@
         🚙<span>Camioneta</span>
       </div>
     </div>
-    <label>Chofer al que asignar</label>
-    <select id="mv-chofer-select">
-      <option value="">— Seleccionar chofer —</option>
-    </select>
+    <label>Buscar chofer</label>
+    <input id="mv-buscar-chofer" type="text" placeholder="🔍 Escribe nombre o ID…" oninput="filtrarChoferesModal(this.value)" autocomplete="off"/>
+    <div id="mv-chofer-lista" style="max-height:200px;overflow-y:auto;margin-top:6px;display:flex;flex-direction:column;gap:6px;"></div>
+    <input type="hidden" id="mv-chofer-select" value=""/>
     <div class="modal-vehiculo-actions">
       <button class="btn-guardar-vehiculo" onclick="guardarVehiculo()">💾 Guardar</button>
       <button class="btn-cancelar-vehiculo" onclick="cerrarModalVehiculo()">Cancelar</button>
@@ -999,25 +999,69 @@ let tipoVehiculoSeleccionado = 'carro';
 function abrirModalVehiculo(choferId) {
   tipoVehiculoSeleccionado = 'carro';
   seleccionarTipoVehiculo('carro');
+  document.getElementById('mv-buscar-chofer').value = '';
+  document.getElementById('mv-chofer-select').value = '';
+  renderChoferesModal('', choferId);
 
-  // Poblar select de choferes
-  const sel = document.getElementById('mv-chofer-select');
-  sel.innerHTML = '<option value="">— Seleccionar chofer —</option>';
-  choferesLista.forEach(ch => {
-    const opt = document.createElement('option');
-    opt.value = ch.id;
-    opt.textContent = `${ch.nombre} (${ch.id})`;
-    if (ch.id === choferId) opt.selected = true;
-    sel.appendChild(opt);
-  });
-
-  // Si viene con choferId, precargar tipo existente
+  // Si viene con choferId, preseleccionar y precargar tipo
   if (choferId) {
     const chofer = choferesLista.find(c => c.id === choferId);
-    if (chofer && chofer.vehiculo_tipo) seleccionarTipoVehiculo(chofer.vehiculo_tipo);
+    if (chofer) {
+      document.getElementById('mv-chofer-select').value = choferId;
+      document.getElementById('mv-buscar-chofer').value = `${chofer.nombre} (${chofer.id})`;
+      if (chofer.vehiculo_tipo) seleccionarTipoVehiculo(chofer.vehiculo_tipo);
+    }
   }
 
   document.getElementById('modal-vehiculo').classList.add('open');
+  setTimeout(() => document.getElementById('mv-buscar-chofer').focus(), 120);
+}
+
+function renderChoferesModal(filtroTexto, seleccionado) {
+  const lista = document.getElementById('mv-chofer-lista');
+  const q = filtroTexto.trim().toLowerCase();
+  const filtrados = q
+    ? choferesLista.filter(ch => ch.nombre.toLowerCase().includes(q) || ch.id.toLowerCase().includes(q))
+    : choferesLista;
+
+  if (!filtrados.length) {
+    lista.innerHTML = '<div style="color:var(--muted);font-size:.82rem;text-align:center;padding:8px;">Sin resultados</div>';
+    return;
+  }
+
+  lista.innerHTML = filtrados.map(ch => {
+    const activo = (document.getElementById('mv-chofer-select').value === ch.id) || (seleccionado === ch.id && !filtroTexto);
+    const emoji = ch.vehiculo_tipo === 'camioneta' ? '🚙' : ch.vehiculo_tipo === 'carro' ? '🚗' : '❓';
+    return `<div
+      onclick="seleccionarChoferModal('${ch.id}','${escHtml(ch.nombre)}')"
+      style="display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;cursor:pointer;border:1.5px solid ${activo ? 'var(--gold)' : 'var(--border)'};background:${activo ? 'rgba(212,175,55,.12)' : '#0f0f0f'};transition:all .15s;">
+      <span style="font-size:1.3rem;">${emoji}</span>
+      <div>
+        <div style="font-size:.88rem;font-weight:600;">${escHtml(ch.nombre)}</div>
+        <div style="font-size:.72rem;color:var(--muted);">ID: ${escHtml(ch.id)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filtrarChoferesModal(q) {
+  renderChoferesModal(q, null);
+}
+
+function seleccionarChoferModal(id, nombre) {
+  document.getElementById('mv-chofer-select').value = id;
+  document.getElementById('mv-buscar-chofer').value = `${nombre} (${id})`;
+  renderChoferesModal('', null);
+  // re-render limpio mostrando solo el seleccionado resaltado
+  const lista = document.getElementById('mv-chofer-lista');
+  lista.querySelectorAll('div[onclick]').forEach(el => {
+    const isSelected = el.getAttribute('onclick').includes(`'${id}'`);
+    el.style.borderColor = isSelected ? 'var(--gold)' : 'var(--border)';
+    el.style.background  = isSelected ? 'rgba(212,175,55,.12)' : '#0f0f0f';
+  });
+
+  const chofer = choferesLista.find(c => c.id === id);
+  if (chofer && chofer.vehiculo_tipo) seleccionarTipoVehiculo(chofer.vehiculo_tipo);
 }
 
 function cerrarModalVehiculo() {
