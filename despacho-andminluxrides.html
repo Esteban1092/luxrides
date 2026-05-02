@@ -385,6 +385,18 @@
   </div>
 </div>
 
+<!-- Panel Flota de Vehículos -->
+<div class="panel" style="margin-top:20px;">
+  <div class="panel-title">🚗 Flota de Vehículos</div>
+  <div style="display:flex;gap:12px;margin-bottom:12px;">
+    <button class="btn-small" onclick="mostrarFlota('todos')" id="flota-tab-todos" style="background:rgba(212,175,55,0.35);color:var(--gold);">🚘 Todos</button>
+    <button class="btn-small" onclick="mostrarFlota('carro')" id="flota-tab-carro">🚗 Carros</button>
+    <button class="btn-small" onclick="mostrarFlota('camioneta')" id="flota-tab-camioneta">🚙 Camionetas</button>
+    <button class="btn-small" onclick="mostrarFlota('sin')" id="flota-tab-sin">❌ Sin asignar</button>
+  </div>
+  <div id="lista-flota" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;"></div>
+</div>
+
 </div><!-- /app-content -->
 
 <div id="toast"></div>
@@ -808,7 +820,8 @@ function iniciarListeners() {
         estado: estadoReal,
         hotel,
         ubicacion,
-        viajeActual: ch.viajeActual || null
+        viajeActual: ch.viajeActual || null,
+        vehiculo_tipo: ch.vehiculo_tipo || ''
       };
     });
 
@@ -837,6 +850,7 @@ function iniciarListeners() {
     refrescarOpcionesHoteles();
     refrescarSelectPagos();
     renderizarChoferes();
+    renderFlota();
     actualizarMapaChoferes();
     db.ref('historial').once('value').then(renderizarGananciasTotales).catch(() => {});
 
@@ -1032,6 +1046,41 @@ async function guardarVehiculo() {
     console.error(err);
     showToast('❌ No se pudo guardar: ' + err.message, true);
   }
+}
+
+let flotaFiltro = 'todos';
+function mostrarFlota(filtro) {
+  flotaFiltro = filtro;
+  ['todos','carro','camioneta','sin'].forEach(f => {
+    const btn = document.getElementById('flota-tab-' + f);
+    if (btn) btn.style.background = f === filtro ? 'rgba(212,175,55,0.35)' : '';
+  });
+  renderFlota();
+}
+
+function renderFlota() {
+  const lista = document.getElementById('lista-flota');
+  if (!lista) return;
+  const filtrados = choferesLista.filter(ch => {
+    if (flotaFiltro === 'todos') return true;
+    if (flotaFiltro === 'sin') return !ch.vehiculo_tipo;
+    return ch.vehiculo_tipo === flotaFiltro;
+  });
+  if (!filtrados.length) {
+    lista.innerHTML = '<div class="empty" style="grid-column:1/-1"><span>🚫</span>Sin vehículos en esta categoría</div>';
+    return;
+  }
+  lista.innerHTML = filtrados.map(ch => `
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;">
+      <div style="font-size:2.2rem;">${ch.vehiculo_tipo === 'camioneta' ? '🚙' : ch.vehiculo_tipo === 'carro' ? '🚗' : '❓'}</div>
+      <div style="font-weight:600;margin:6px 0 2px;">${escHtml(ch.nombre)}</div>
+      <div style="font-size:.75rem;color:var(--muted);">ID: ${escHtml(ch.id)}</div>
+      <div style="margin-top:6px;font-size:.8rem;color:${ch.vehiculo_tipo ? 'var(--gold)' : '#666'};">
+        ${ch.vehiculo_tipo ? (ch.vehiculo_tipo === 'camioneta' ? '🚙 Camioneta' : '🚗 Carro') : 'Sin vehículo'}
+      </div>
+      <button class="btn-small" style="margin-top:8px;width:100%;" onclick="abrirModalVehiculo('${ch.id}')">✏️ Cambiar</button>
+    </div>
+  `).join('');
 }
 
 // Cerrar modal al hacer click fuera
