@@ -194,6 +194,40 @@
     .totals-item span{display:block;color:var(--muted);font-size:0.76rem;margin-top:2px;}
     .totals-amount{font-weight:700;color:#86efac;white-space:nowrap;}
 
+    /* MODAL VEHÍCULO */
+    #modal-vehiculo{display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.72);align-items:center;justify-content:center;}
+    #modal-vehiculo.open{display:flex;}
+    .modal-vehiculo-card{background:#1a1a1a;border:1.5px solid var(--gold);border-radius:16px;padding:26px 22px;width:92%;max-width:420px;position:relative;overflow-y:auto;max-height:90vh;}
+    .modal-vehiculo-card h3{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.15rem;margin-bottom:16px;}
+    .modal-vehiculo-card label{font-size:.7rem;text-transform:uppercase;letter-spacing:.15em;color:var(--muted);display:block;margin-bottom:6px;margin-top:12px;}
+    .modal-vehiculo-card input,.modal-vehiculo-card select{width:100%;padding:10px 12px;background:#0f0f0f;border:1px solid var(--border);color:var(--fg);border-radius:7px;font-family:'Outfit',sans-serif;font-size:.9rem;outline:none;box-sizing:border-box;}
+    .modal-vehiculo-card input:focus,.modal-vehiculo-card select:focus{border-color:var(--gold);}
+    .tipo-vehiculo-row{display:flex;gap:10px;margin-bottom:4px;}
+    .tipo-btn{flex:1;padding:14px 8px;border-radius:10px;border:2px solid var(--border);background:#0f0f0f;color:var(--muted);font-size:1.5rem;text-align:center;cursor:pointer;transition:all .2s;}
+    .tipo-btn.activo{border-color:var(--gold);background:rgba(212,175,55,.12);color:var(--gold);}
+    .tipo-btn span{display:block;font-size:.72rem;font-family:'Outfit',sans-serif;margin-top:4px;}
+    .modal-vehiculo-actions{display:flex;gap:10px;margin-top:18px;}
+    .btn-guardar-vehiculo{flex:1;padding:12px;background:var(--gold);color:#050505;border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-weight:700;font-size:.95rem;cursor:pointer;}
+    .btn-cancelar-vehiculo{flex:0 0 auto;padding:12px 16px;background:rgba(239,68,68,.18);color:#fca5a5;border:1px solid rgba(239,68,68,.4);border-radius:8px;cursor:pointer;font-family:'Outfit',sans-serif;}
+    .chofer-vehiculo{font-size:.74rem;color:#a3a3a3;margin-top:3px;}
+
+    /* MODAL VEHÍCULO */
+    #modal-vehiculo{display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.72);align-items:center;justify-content:center;}
+    #modal-vehiculo.open{display:flex;}
+    .modal-vehiculo-card{background:#1a1a1a;border:1.5px solid var(--gold);border-radius:16px;padding:26px 22px;width:92%;max-width:420px;position:relative;}
+    .modal-vehiculo-card h3{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.15rem;margin-bottom:16px;}
+    .modal-vehiculo-card label{font-size:.7rem;text-transform:uppercase;letter-spacing:.15em;color:var(--muted);display:block;margin-bottom:6px;margin-top:12px;}
+    .modal-vehiculo-card input, .modal-vehiculo-card select{width:100%;padding:10px 12px;background:#0f0f0f;border:1px solid var(--border);color:var(--fg);border-radius:7px;font-family:'Outfit',sans-serif;font-size:.9rem;outline:none;box-sizing:border-box;}
+    .modal-vehiculo-card input:focus, .modal-vehiculo-card select:focus{border-color:var(--gold);}
+    .tipo-vehiculo-row{display:flex;gap:10px;margin-bottom:4px;}
+    .tipo-btn{flex:1;padding:14px 8px;border-radius:10px;border:2px solid var(--border);background:#0f0f0f;color:var(--muted);font-size:1.5rem;text-align:center;cursor:pointer;transition:all .2s;}
+    .tipo-btn.activo{border-color:var(--gold);background:rgba(212,175,55,.12);color:var(--gold);}
+    .tipo-btn span{display:block;font-size:.72rem;font-family:'Outfit',sans-serif;margin-top:4px;}
+    .modal-vehiculo-actions{display:flex;gap:10px;margin-top:18px;}
+    .btn-guardar-vehiculo{flex:1;padding:12px;background:var(--gold);color:#050505;border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-weight:700;font-size:.95rem;cursor:pointer;}
+    .btn-cancelar-vehiculo{flex:0 0 auto;padding:12px 16px;background:rgba(239,68,68,.18);color:#fca5a5;border:1px solid rgba(239,68,68,.4);border-radius:8px;cursor:pointer;font-family:'Outfit',sans-serif;}
+    .chofer-vehiculo{font-size:.74rem;color:#a3a3a3;margin-top:3px;}
+
     /* MENSAJES VACÍOS */
     .empty{
       text-align:center;padding:30px 10px;
@@ -291,6 +325,7 @@
     </div>
     <div class="panel-actions">
       <button class="btn-link-panel btn-gold" type="button" onclick="toggleQuickChoferForm()">➕ Agregar chofer aquí</button>
+      <button class="btn-link-panel btn-gold" type="button" onclick="abrirModalVehiculo(null)">🚗 Agregar carro</button>
       <button class="btn-link-panel btn-danger" type="button" onclick="borrarChoferesAdmin()">🗑️ Borrar choferes</button>
       <select id="filtro-hotel" class="sel-filter" onchange="aplicarFiltroHotel(this.value)">
         <option value="TODOS">🏨 Todos los hoteles</option>
@@ -353,6 +388,40 @@
 </div><!-- /app-content -->
 
 <div id="toast"></div>
+
+<!-- Modal asignar vehículo -->
+<div id="modal-vehiculo">
+  <div class="modal-vehiculo-card">
+    <h3>🚗 Asignar Vehículo</h3>
+    <label>Tipo de vehículo</label>
+    <div class="tipo-vehiculo-row">
+      <div class="tipo-btn activo" id="tipo-carro" onclick="seleccionarTipoVehiculo('carro')">
+        🚗<span>Carro</span>
+      </div>
+      <div class="tipo-btn" id="tipo-camioneta" onclick="seleccionarTipoVehiculo('camioneta')">
+        🚙<span>Camioneta</span>
+      </div>
+    </div>
+    <label>Chofer al que asignar</label>
+    <select id="mv-chofer-select">
+      <option value="">— Seleccionar chofer —</option>
+    </select>
+    <label>Marca</label>
+    <input id="mv-marca" type="text" placeholder="Ej: Toyota, Ford, Nissan…"/>
+    <label>Modelo</label>
+    <input id="mv-modelo" type="text" placeholder="Ej: Camry, Explorer…"/>
+    <label>Color</label>
+    <input id="mv-color" type="text" placeholder="Ej: Negro, Blanco…"/>
+    <label>Placa</label>
+    <input id="mv-placa" type="text" placeholder="Ej: ABC-1234" style="text-transform:uppercase;"/>
+    <label>Año (opcional)</label>
+    <input id="mv-anio" type="number" min="2000" max="2030" placeholder="Ej: 2024"/>
+    <div class="modal-vehiculo-actions">
+      <button class="btn-guardar-vehiculo" onclick="guardarVehiculo()">💾 Guardar</button>
+      <button class="btn-cancelar-vehiculo" onclick="cerrarModalVehiculo()">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ─────────────────────────────────────────────────────────────
@@ -759,7 +828,13 @@ function iniciarListeners() {
       estado: ch.estado || 'Desconectado',
       hotel: ch.hotel || '',
       ubicacion: ch.ubicacion || null,
-      viajeActual: ch.viajeActual || null
+      viajeActual: ch.viajeActual || null,
+      vehiculo_tipo:   ch.vehiculo_tipo   || '',
+      vehiculo_marca:  ch.vehiculo_marca  || '',
+      vehiculo_modelo: ch.vehiculo_modelo || '',
+      vehiculo_color:  ch.vehiculo_color  || '',
+      vehiculo_anio:   ch.vehiculo_anio   || '',
+      placa:           ch.placa           || ''
     }));
 
     // Actualizar badge con conteo online/desconectados
@@ -911,6 +986,96 @@ function toggleQuickChoferForm() {
   if (!form) return;
   form.style.display = form.style.display === 'block' ? 'none' : 'block';
 }
+
+// ─────────────────────────────────────────────────────────────
+//  MODAL VEHÍCULO
+// ─────────────────────────────────────────────────────────────
+let tipoVehiculoSeleccionado = 'carro';
+
+function abrirModalVehiculo(choferId) {
+  tipoVehiculoSeleccionado = 'carro';
+  seleccionarTipoVehiculo('carro');
+
+  // Poblar select de choferes
+  const sel = document.getElementById('mv-chofer-select');
+  sel.innerHTML = '<option value="">— Seleccionar chofer —</option>';
+  choferesLista.forEach(ch => {
+    const opt = document.createElement('option');
+    opt.value = ch.id;
+    opt.textContent = `${ch.nombre} (${ch.id})`;
+    if (ch.id === choferId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  // Si viene con choferId, precargar datos existentes
+  if (choferId) {
+    const chofer = choferesLista.find(c => c.id === choferId);
+    if (chofer) {
+      document.getElementById('mv-marca').value  = chofer.vehiculo_marca  || '';
+      document.getElementById('mv-modelo').value = chofer.vehiculo_modelo || '';
+      document.getElementById('mv-color').value  = chofer.vehiculo_color  || '';
+      document.getElementById('mv-placa').value  = chofer.placa           || '';
+      document.getElementById('mv-anio').value   = chofer.vehiculo_anio   || '';
+      if (chofer.vehiculo_tipo) seleccionarTipoVehiculo(chofer.vehiculo_tipo);
+    }
+  } else {
+    document.getElementById('mv-marca').value  = '';
+    document.getElementById('mv-modelo').value = '';
+    document.getElementById('mv-color').value  = '';
+    document.getElementById('mv-placa').value  = '';
+    document.getElementById('mv-anio').value   = '';
+  }
+
+  document.getElementById('modal-vehiculo').classList.add('open');
+}
+
+function cerrarModalVehiculo() {
+  document.getElementById('modal-vehiculo').classList.remove('open');
+}
+
+function seleccionarTipoVehiculo(tipo) {
+  tipoVehiculoSeleccionado = tipo;
+  document.getElementById('tipo-carro').classList.toggle('activo', tipo === 'carro');
+  document.getElementById('tipo-camioneta').classList.toggle('activo', tipo === 'camioneta');
+}
+
+async function guardarVehiculo() {
+  const choferId = document.getElementById('mv-chofer-select').value;
+  const marca    = (document.getElementById('mv-marca').value  || '').trim();
+  const modelo   = (document.getElementById('mv-modelo').value || '').trim();
+  const color    = (document.getElementById('mv-color').value  || '').trim();
+  const placa    = (document.getElementById('mv-placa').value  || '').trim().toUpperCase();
+  const anio     = document.getElementById('mv-anio').value || '';
+
+  if (!choferId) { showToast('⚠️ Selecciona un chofer.', true); return; }
+  if (!marca)    { showToast('⚠️ Escribe la marca del vehículo.', true); return; }
+  if (!modelo)   { showToast('⚠️ Escribe el modelo del vehículo.', true); return; }
+  if (!color)    { showToast('⚠️ Escribe el color del vehículo.', true); return; }
+  if (!placa)    { showToast('⚠️ Escribe la placa del vehículo.', true); return; }
+
+  try {
+    await db.ref('choferes/' + choferId).update({
+      vehiculo_tipo:   tipoVehiculoSeleccionado,
+      vehiculo_marca:  marca,
+      vehiculo_modelo: modelo,
+      vehiculo_color:  color,
+      placa,
+      ...(anio ? { vehiculo_anio: anio } : {}),
+      vehiculo_actualizado_en: new Date().toISOString()
+    });
+    cerrarModalVehiculo();
+    const nombreChofer = (choferesLista.find(c => c.id === choferId)?.nombre) || choferId;
+    showToast(`✅ Vehículo asignado a ${nombreChofer}: ${marca} ${modelo} · ${placa}`);
+  } catch (err) {
+    console.error(err);
+    showToast('❌ No se pudo guardar: ' + err.message, true);
+  }
+}
+
+// Cerrar modal al hacer click fuera
+document.getElementById('modal-vehiculo').addEventListener('click', function(e){
+  if (e.target === this) cerrarModalVehiculo();
+});
 
 async function confirmarNuevoChofer() {
   const id = normalizeChoferId(document.getElementById('nuevo-chofer-id')?.value || '');
@@ -1478,7 +1643,7 @@ function renderizarChoferes() {
 
     div.innerHTML += `
       <div class="chofer-card">
-        <div class="chofer-avatar">🚗</div>
+        <div class="chofer-avatar">${ch.vehiculo_tipo === 'camioneta' ? '🚙' : '🚗'}</div>
         <div class="chofer-info">
           <div class="chofer-nombre">${escHtml(ch.nombre)}</div>
           <div class="chofer-id">ID: ${escHtml(ch.id)}</div>
@@ -1486,11 +1651,13 @@ function renderizarChoferes() {
             <span class="dot ${dotClass}"></span>${estadoLabel}
           </div>
           <div class="chofer-hotel">🏨 Hotel: <b>${escHtml(ch.hotel || 'Sin asignar')}</b></div>
+          ${ch.vehiculo_marca ? `<div class="chofer-vehiculo">🚘 ${escHtml(ch.vehiculo_tipo === 'camioneta' ? 'Camioneta' : 'Carro')}: ${escHtml(ch.vehiculo_marca)} ${escHtml(ch.vehiculo_modelo || '')} · ${escHtml(ch.vehiculo_color || '')} · ${escHtml(ch.placa || '')}</div>` : '<div class="chofer-vehiculo" style="color:#666;">Sin vehículo asignado</div>'}
           ${ch.viajeActual ? `<div class="viaje-actual">🗺️ ${escHtml(ch.viajeActual)}</div>` : ''}
           <div class="chofer-actions">
             <button class="btn-small" onclick="editarNombreChofer('${ch.id}')">✏️ Editar nombre</button>
-            <button class="btn-small" onclick="asignarHotel('${ch.id}')">🏨 Asignar hotel</button>
-            <button class="btn-small" onclick="borrarChoferIndividual('${ch.id}')">🗑️ Borrar chofer</button>
+            <button class="btn-small" onclick="asignarHotel('${ch.id}')">🏨 Hotel</button>
+            <button class="btn-small" onclick="abrirModalVehiculo('${ch.id}')">🚗 Vehículo</button>
+            <button class="btn-small" onclick="borrarChoferIndividual('${ch.id}')">🗑️ Borrar</button>
           </div>
         </div>
       </div>`;
@@ -1904,7 +2071,13 @@ setInterval(() => {
       choferesLista = Object.entries(choferesDisponibles).map(([id, ch]) => ({
         id, nombre: ch.nombre || id, estado: ch.estado || 'Desconectado',
         hotel: ch.hotel || '', ubicacion: ch.ubicacion || null,
-        viajeActual: ch.viajeActual || null
+        viajeActual: ch.viajeActual || null,
+        vehiculo_tipo:   ch.vehiculo_tipo   || '',
+        vehiculo_marca:  ch.vehiculo_marca  || '',
+        vehiculo_modelo: ch.vehiculo_modelo || '',
+        vehiculo_color:  ch.vehiculo_color  || '',
+        vehiculo_anio:   ch.vehiculo_anio   || '',
+        placa:           ch.placa           || ''
       }));
       renderizarChoferes();
       actualizarMapaChoferes();
