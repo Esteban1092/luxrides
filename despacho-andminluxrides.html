@@ -351,8 +351,13 @@
   <div class="monitor-grid">
     <div>
       <div style="position:relative;">
+        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <button class="btn-small" id="mapa-tab-todos" onclick="filtrarMapa('todos')" style="background:rgba(212,175,55,0.35);color:var(--gold);">🚦 Todos</button>
+          <button class="btn-small" id="mapa-tab-carro" onclick="filtrarMapa('carro')">🚗 Solo carros</button>
+          <button class="btn-small" id="mapa-tab-camioneta" onclick="filtrarMapa('camioneta')">🚙 Solo camionetas</button>
+        </div>
         <div id="map-choferes"></div>
-        <button type="button" onclick="refrescarMapa()" style="position:absolute;top:10px;right:10px;z-index:10;background:var(--gold);color:#050505;border:none;padding:8px 14px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:background .2s;">🔄 Refrescar mapa</button>
+        <button type="button" onclick="refrescarMapa()" style="position:absolute;bottom:10px;right:10px;z-index:10;background:var(--gold);color:#050505;border:none;padding:8px 14px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:background .2s;">🔄 Refrescar mapa</button>
       </div>
     </div>
     <div>
@@ -1435,6 +1440,16 @@ function obtenerPathRutaReal(origen, destino) {
   });
 }
 
+let mapaFiltroVehiculo = 'todos';
+function filtrarMapa(tipo) {
+  mapaFiltroVehiculo = tipo;
+  ['todos','carro','camioneta'].forEach(f => {
+    const btn = document.getElementById('mapa-tab-' + f);
+    if (btn) btn.style.background = f === tipo ? 'rgba(212,175,55,0.35)' : '';
+  });
+  actualizarMapaChoferes();
+}
+
 async function actualizarMapaChoferes() {
   if (!mapChoferes || !(window.google && google.maps)) return;
 
@@ -1448,7 +1463,8 @@ async function actualizarMapaChoferes() {
     const lat = Number(ch.ubicacion?.lat);
     const lng = Number(ch.ubicacion?.lng);
     const online = /en linea|ocupado|libre/i.test((ch.estado || '').toLowerCase());
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !online) {
+    const pasaFiltro = mapaFiltroVehiculo === 'todos' || ch.vehiculo_tipo === mapaFiltroVehiculo;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !online || !pasaFiltro) {
       return;
     }
 
@@ -1456,6 +1472,8 @@ async function actualizarMapaChoferes() {
     const title = `Chofer ${ch.id} · ${ch.nombre}`;
     const color = String(ch.estado || '').toLowerCase().includes('ocupado') ? '#F59E0B' : '#22C55E';
     const icon = crearIconoChofer(color);
+    const vehiculoEmoji = ch.vehiculo_tipo === 'camioneta' ? '🚙' : ch.vehiculo_tipo === 'carro' ? '🚗' : '🔹';
+    const labelText = `${vehiculoEmoji} ${ch.nombre}`;
 
     if (!choferMapMarkers[ch.id]) {
       choferMapMarkers[ch.id] = new google.maps.Marker({
@@ -1464,7 +1482,7 @@ async function actualizarMapaChoferes() {
         title,
         icon,
         label: {
-          text: `${ch.id} · ${ch.nombre}`,
+          text: labelText,
           color: '#f8fafc',
           fontSize: '11px',
           fontWeight: '700'
@@ -1475,7 +1493,7 @@ async function actualizarMapaChoferes() {
       choferMapMarkers[ch.id].setTitle(title);
       choferMapMarkers[ch.id].setIcon(icon);
       choferMapMarkers[ch.id].setLabel({
-        text: `${ch.id} · ${ch.nombre}`,
+        text: labelText,
         color: '#f8fafc',
         fontSize: '11px',
         fontWeight: '700'
