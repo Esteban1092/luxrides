@@ -134,6 +134,8 @@ select{padding-left:12px;padding-right:12px;}
 #btn-wa:hover{background:#1ebe5d;}
 #btn-stripe{width:100%;padding:14px;border:none;background:#635bff;color:#fff;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s;margin-top:8px;border-radius:6px;}
 #btn-stripe:hover{background:#4b44d4;}
+#btn-clip{width:100%;padding:14px;border:none;background:#00C482;color:#fff;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s;margin-top:8px;border-radius:6px;}
+#btn-clip:hover{background:#00a86e;}
 /* ── Modal Stripe ── */
 #stripe-modal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65);align-items:center;justify-content:center;}
 .stripe-modal-card{background:#fff;border-radius:18px;padding:28px 22px;width:92%;max-width:400px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
@@ -373,6 +375,7 @@ select{padding-left:12px;padding-right:12px;}
       </div>
       <button id="btn-wa" onclick="enviarWhatsApp()">💬 Confirmar por WhatsApp</button>
       <button id="btn-stripe" onclick="abrirPagoStripe()">💳 Pagar con Stripe</button>
+      <button id="btn-clip" onclick="pagarConClip()">🟢 Pagar con Clip</button>
       <div class="track-box" id="track-box">
         <span id="track-text">Seguimiento en vivo: pendiente de asignacion.</span>
         <div class="driver-chip" id="driver-chip">
@@ -1882,6 +1885,19 @@ function abrirWhatsAppSeguro(numeroCentral, encodedText, waWindow){
   }
 
   window.open(urlWeb, '_blank', 'noopener,noreferrer');
+}
+
+// ── Clip.mx Payment ─────────────────────────────────────────────────────
+
+function pagarConClip() {
+  if (!resultado || !resultado.totalPrecio) {
+    alert('Primero calcula el precio del servicio.');
+    return;
+  }
+  const monto = resultado.totalPrecio.toLocaleString('es-MX');
+  const confirmar = confirm(`Serás redirigido a Clip.mx para pagar $${monto} MXN.\n\n¿Deseas continuar?`);
+  if (!confirmar) return;
+  window.open('https://clip.mx/@Luxridesreservas.com', '_blank');
 }
 
 // ── Stripe Payment ──────────────────────────────────────────────────────
