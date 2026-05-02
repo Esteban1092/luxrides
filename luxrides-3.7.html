@@ -101,9 +101,9 @@ select{padding-left:12px;padding-right:12px;}
 .time-inputs input[type=number]{width:52px;padding:11px 4px;text-align:center;}
 .time-colon{color:var(--muted);font-size:1.2rem;font-weight:700;}
 .ampm-wrap{display:flex;}
-.btn-ampm{padding:11px 10px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Outfit',sans-serif;font-size:0.75rem;cursor:pointer;transition:all .2s;}
+.btn-ampm{padding:13px 28px;border:2px solid var(--gold);background:#fff;color:var(--gold);font-family:'Outfit',sans-serif;font-size:1.1rem;font-weight:700;cursor:pointer;border-radius:8px;box-shadow:0 2px 8px rgba(212,175,55,0.08);transition:all .2s;}
 .btn-ampm:last-child{border-left:none;}
-.btn-ampm.active{background:var(--gold);border-color:var(--gold);color:#050505;font-weight:600;}
+.btn-ampm.active{background:var(--gold);border-color:var(--gold);color:#050505;font-weight:700;}
 #btn-calc{width:100%;padding:14px;margin-top:20px;background:var(--gold);border:none;color:#050505;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s;}
 #btn-calc:hover{background:var(--gold-hover);}
 #btn-calc:disabled{opacity:0.5;cursor:not-allowed;}
@@ -333,8 +333,8 @@ select{padding-left:12px;padding-right:12px;}
           <input type="number" id="inp-min" min="0" max="59" value="00"/>
         </div>
         <div class="ampm-wrap" style="display:flex;justify-content:center;gap:16px;margin-top:10px;">
-          <button type="button" class="btn-ampm active" id="btn-am" onclick="setAmpm('AM')" style="font-size:1.1rem;padding:13px 28px;background:#fff;border:2px solid var(--gold);color:var(--gold);border-radius:8px;box-shadow:0 2px 8px rgba(212,175,55,0.08);font-weight:700;">AM</button>
-          <button type="button" class="btn-ampm" id="btn-pm" onclick="setAmpm('PM')" style="font-size:1.1rem;padding:13px 28px;background:#fff;border:2px solid var(--gold);color:var(--gold);border-radius:8px;box-shadow:0 2px 8px rgba(212,175,55,0.08);font-weight:700;">PM</button>
+          <button type="button" class="btn-ampm active" id="btn-am" onclick="setAmpm('AM')">AM</button>
+          <button type="button" class="btn-ampm" id="btn-pm" onclick="setAmpm('PM')">PM</button>
         </div>
       </div>
     </div>
