@@ -331,6 +331,12 @@
         <option value="TODOS">🏨 Todos los hoteles</option>
       </select>
     </div>
+    <div style="padding:0 0 8px;">
+      <input id="buscador-choferes" type="text" placeholder="🔍 Buscar por nombre, ID o carro/camioneta…"
+        oninput="renderizarChoferes()"
+        style="width:100%;padding:9px 12px;background:#0f0f0f;border:1px solid var(--border);color:var(--fg);border-radius:8px;font-family:'Outfit',sans-serif;font-size:.88rem;outline:none;box-sizing:border-box;"
+        onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'"/>
+    </div>
     <div id="quick-chofer-form" class="quick-form">
       <div class="quick-row">
         <input id="nuevo-chofer-id" type="text" placeholder="ID chofer (ej: 009)"/>
@@ -1700,9 +1706,14 @@ function renderizarChoferes() {
   const div = document.getElementById('lista-choferes');
   div.innerHTML = '';
 
+  const q = (document.getElementById('buscador-choferes')?.value || '').trim().toLowerCase();
+
   const filtrados = choferesLista.filter(ch => {
-    if (filtroHotelActivo === 'TODOS') return true;
-    return (ch.hotel || 'Sin asignar') === filtroHotelActivo;
+    if (filtroHotelActivo !== 'TODOS' && (ch.hotel || 'Sin asignar') !== filtroHotelActivo) return false;
+    if (!q) return true;
+    return ch.nombre.toLowerCase().includes(q)
+        || ch.id.toLowerCase().includes(q)
+        || (ch.vehiculo_tipo || '').toLowerCase().includes(q);
   });
 
   filtrados.forEach(ch => {
