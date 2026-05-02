@@ -261,12 +261,12 @@
 
         <div class="metodo-selector">
           <button class="metodo-btn activo-instant" id="btn-metodo-instant" onclick="seleccionarMetodo('instant')">
-            ⚡ Instantáneo
-            <span class="metodo-badge">Tarjeta débito · minutos</span>
+            ⚡ Débito — Rápido
+            <span class="metodo-badge">Tarjeta débito Visa/MC · llega en minutos</span>
           </button>
           <button class="metodo-btn" id="btn-metodo-standard" onclick="seleccionarMetodo('standard')">
-            🏦 Transferencia
-            <span class="metodo-badge">CLABE · 1–2 días hábiles</span>
+            🏦 CLABE — Normal
+            <span class="metodo-badge">Transferencia SPEI · proceso tardado</span>
           </button>
         </div>
 
@@ -438,6 +438,7 @@
     let ringtoneAudio = null;
     let ringtoneStopTimer = null;
     let notificationRepeatInterval = null;
+    let metodoRetiro = 'instant';
     let titleAlertInterval = null;
     let baseDocumentTitle = document.title;
     let viajeNotification = null;
@@ -1874,6 +1875,27 @@
     // SALDO Y RETIRO
     // =====================================================================
 
+    function seleccionarMetodo(metodo) {
+      metodoRetiro = metodo;
+      const btnInstant  = document.getElementById('btn-metodo-instant');
+      const btnStandard = document.getElementById('btn-metodo-standard');
+      const camposInstant  = document.getElementById('campos-instant');
+      const camposStandard = document.getElementById('campos-standard');
+      if (metodo === 'instant') {
+        btnInstant.classList.add('activo-instant');
+        btnInstant.classList.remove('activo-standard');
+        btnStandard.classList.remove('activo-instant','activo-standard');
+        camposInstant.style.display  = 'block';
+        camposStandard.style.display = 'none';
+      } else {
+        btnStandard.classList.add('activo-standard');
+        btnStandard.classList.remove('activo-instant');
+        btnInstant.classList.remove('activo-instant','activo-standard');
+        camposInstant.style.display  = 'none';
+        camposStandard.style.display = 'block';
+      }
+    }
+
     function cargarSaldoChofer() {
       if (!choferID) return;
 
@@ -1914,11 +1936,51 @@
           guardadoEl.style.color = 'var(--ok)';
           guardadoEl.innerText = '✅ ' + (banco.titular || '') + '  ·  ' + (banco.nombre || '') + '  ·  •••• •••• •••• ' + (banco.cardLast4 || '????') + '  exp: ' + (banco.cardExpMonth || '--') + '/' + (banco.cardExpYear || '--');
         }
+        // Standard (CLABE)
+        const inpTitularStd = document.getElementById('inp-titular-std');
+        const inpBancoStd   = document.getElementById('inp-banco-std');
+        const inpClabeStd   = document.getElementById('inp-clabe-std');
+        const guardadoStd   = document.getElementById('banco-guardado-std');
+        if (inpTitularStd && banco.titularStd) inpTitularStd.value = banco.titularStd;
+        if (inpBancoStd   && banco.nombreStd)  inpBancoStd.value   = banco.nombreStd;
+        if (inpClabeStd   && banco.clabe)      inpClabeStd.value   = banco.clabe;
+        if (guardadoStd   && banco.clabe) {
+          guardadoStd.style.color = 'var(--ok)';
+          guardadoStd.innerText = '✅ ' + (banco.titularStd || '') + '  ·  ' + (banco.nombreStd || '') + '  ·  CLABE: ' + banco.clabe;
+        }
       }).catch(() => {});
     }
 
     async function guardarDatosBanco() {
-      const titular = (document.getElementById('inp-titular').value || '').trim();
+      // ── Caso CLABE (standard) ──────────────────────────────────────────
+      if (metodoRetiro === 'standard') {
+        const titularStd = (document.getElementById('inp-titular-std').value || '').trim();
+        const nombreStd  = (document.getElementById('inp-banco-std').value   || '').trim();
+        const clabe      = (document.getElementById('inp-clabe-std').value   || '').replace(/\s/g, '');
+        if (!titularStd) { alert('Escribe el nombre completo del titular.'); return; }
+        if (!nombreStd)  { alert('Escribe el nombre del banco.'); return; }
+        if (!/^\d{18}$/.test(clabe)) { alert('La CLABE debe tener 18 dígitos.'); return; }
+        const guardadoStd = document.getElementById('banco-guardado-std');
+        try {
+          await db.ref('choferes/' + choferID + '/banco').update({
+            titularStd, nombreStd, clabe,
+            metodo: 'standard',
+            actualizadoEn: new Date().toISOString()
+          });
+          if (guardadoStd) {
+            guardadoStd.style.color = 'var(--ok)';
+            guardadoStd.innerText = '✅ ' + titularStd + '  ·  ' + nombreStd + '  ·  CLABE: ' + clabe;
+          }
+          alert('¡CLABE guardada! Ya puedes solicitar retiros.');
+        } catch (err) {
+          console.error(err);
+          if (guardadoStd) guardadoStd.innerText = '';
+          alert('No se pudo guardar. Intenta de nuevo.');
+        }
+        return;
+      }
+
+      // ── Caso tarjeta débito (instant) ─────────────────────────────────
       const email   = (document.getElementById('inp-email').value   || '').trim().toLowerCase();
       const nombre  = (document.getElementById('inp-banco').value   || '').trim();
       const cardRaw = (document.getElementById('inp-card').value    || '').replace(/\s/g, '');
@@ -2015,7 +2077,7 @@
       const montoFmt = '$' + saldoActual.toLocaleString('es-MX') + ' MXN';
       const confirmMsg = esInstant
         ? '¿Confirmas el retiro por ' + montoFmt + '?\n\nTitular: ' + banco.titular + '\nBanco: ' + (banco.nombre||'Sin especificar') + '\nTarjeta: •••• •••• •••• ' + (banco.cardLast4||'????') + '\n\n⚡ Pago instantáneo — llega en minutos.'
-        : '¿Confirmas el retiro por ' + montoFmt + '?\n\nTitular: ' + banco.titularStd + '\nBanco: ' + (banco.nombreStd||'Sin especificar') + '\nCLABE: ' + banco.clabe + '\n\n🏦 Transferencia SPEI — llega en 1–2 días hábiles.';
+        : '¿Confirmas el retiro por ' + montoFmt + '?\n\nTitular: ' + banco.titularStd + '\nBanco: ' + (banco.nombreStd||'Sin especificar') + '\nCLABE: ' + banco.clabe + '\n\n🏦 Transferencia SPEI — el proceso es tardado.';
       if (!confirm(confirmMsg)) return;
 
       const btn = document.getElementById('btn-solicitar-retiro');
@@ -2072,7 +2134,7 @@
               msgEl.style.color = 'var(--ok)';
               msgEl.innerText = esInstant
                 ? '✅ ¡Pago enviado! Llegará a tu tarjeta en minutos.'
-                : '✅ ¡Solicitud enviada! Llegará a tu cuenta en 1–2 días hábiles.';
+                : '✅ ¡Solicitud enviada! Llegará a tu cuenta (el proceso es tardado).';
             }
             // El saldo ya es 0, el botón queda deshabilitado correctamente
 
