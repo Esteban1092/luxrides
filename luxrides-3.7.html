@@ -2664,9 +2664,19 @@ function iniciarSeguimientoCliente(reservaId){
       renderRutaChofer();
     }
 
-    // Mostrar botón Finalizar Viaje solo cuando el viaje está en curso
+    // Mostrar botón Finalizar Viaje cuando está en curso O cuando el chofer ya confirmó y espera al cliente
     const btnFin = document.getElementById('btn-finalizar-viaje');
-    if (btnFin) btnFin.style.display = (estado === 'en curso' || estado === 'en_curso') ? 'block' : 'none';
+    if (btnFin) {
+      const mostrarBtn = (estado === 'en curso' || estado === 'en_curso' || estado === 'esperando_cliente');
+      btnFin.style.display = mostrarBtn ? 'block' : 'none';
+      if (estado === 'esperando_cliente') {
+        btnFin.textContent = '✅ Tu chofer ya confirmó — Confirma tú también';
+        btnFin.style.background = '#F59E0B';
+      } else {
+        btnFin.textContent = '✅ Finalizar Viaje';
+        btnFin.style.background = '#22C55E';
+      }
+    }
 
     if (estado === 'completado' || estado === 'cancelado') {
       // Limpiar TODA la presencia del chofer en el mapa

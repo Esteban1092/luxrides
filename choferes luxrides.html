@@ -1425,14 +1425,15 @@
           }
         }
 
-        // Guardar en historial del chofer
+        // Guardar en historial del chofer — estado depende de si ambos ya confirmaron
         await db.ref('historial/' + choferID).push({
           cliente: viajeActual.cliente || 'Cliente',
           origen: viajeActual.origen || '-',
           destino: viajeActual.destino || '-',
           precio,
           pago_chofer,
-          estado: 'completado',
+          estado: ambosFinalizan ? 'completado' : 'esperando_cliente',
+          reserva_id: viajeActual.reserva_id || '',
           fecha: new Date().toLocaleDateString(),
           hora: new Date().toLocaleTimeString(),
           timestamp: Date.now()

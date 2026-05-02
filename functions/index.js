@@ -607,5 +607,19 @@ exports.completarViajeDual = onValueUpdated(
       });
       logger.info('Saldo acreditado al chofer', { choferId, pagoChofer, reservaId });
     }
+
+    // Actualizar entradas de historial del chofer que estén en 'esperando_cliente' para esta reserva
+    if (choferId) {
+      const histSnap = await db.ref('historial/' + choferId).orderByChild('reserva_id').equalTo(reservaId).once('value');
+      const updates = {};
+      histSnap.forEach(child => {
+        if (child.val().estado === 'esperando_cliente') {
+          updates[child.key + '/estado'] = 'completado';
+        }
+      });
+      if (Object.keys(updates).length > 0) {
+        await db.ref('historial/' + choferId).update(updates);
+      }
+    }
   }
 );
