@@ -111,19 +111,19 @@
     }
     .tarjeta hr{border:none;border-top:1px solid var(--border);margin:10px 0;}
 
-    .assign-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-    .assign-row label{font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);}
-    select.sel-chofer{
-      flex:1;min-width:140px;
-      background:var(--bg);color:var(--fg);
-      border:1px solid var(--border);
-      padding:8px 10px;border-radius:6px;
-      font-family:'Outfit',sans-serif;font-size:0.85rem;
-      outline:none;transition:border-color .2s;
-      cursor:pointer;
-    }
+    .assign-row{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;}
+    .assign-row label{font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);padding-top:9px;}
+    select.sel-chofer{flex:1;min-width:140px;background:var(--bg);color:var(--fg);border:1px solid var(--border);padding:8px 10px;border-radius:6px;font-family:'Outfit',sans-serif;font-size:0.85rem;outline:none;transition:border-color .2s;cursor:pointer;}
     select.sel-chofer:focus{border-color:var(--gold);}
     select.sel-chofer option{background:#1a1a1a;}
+    .csd-wrap{position:relative;flex:1;min-width:160px;}
+    .csd-input{width:100%;padding:8px 10px;background:#0f0f0f;border:1px solid var(--border);color:var(--fg);border-radius:6px;font-family:'Outfit',sans-serif;font-size:.85rem;outline:none;box-sizing:border-box;transition:border-color .2s;}
+    .csd-input:focus{border-color:var(--gold);}
+    .csd-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#1a1a1a;border:1px solid var(--gold);border-radius:8px;max-height:200px;overflow-y:auto;z-index:8000;display:none;box-shadow:0 8px 24px rgba(0,0,0,.6);}
+    .csd-list.open{display:block;}
+    .csd-item{display:flex;align-items:center;gap:8px;padding:9px 11px;cursor:pointer;font-size:.84rem;border-bottom:1px solid rgba(255,255,255,.05);transition:background .15s;}
+    .csd-item:last-child{border-bottom:none;}
+    .csd-item:hover,.csd-item.sel{background:rgba(212,175,55,.14);color:var(--gold);}
 
     .btn-despachar{
       background:var(--gold);color:#050505;
@@ -766,22 +766,27 @@ function iniciarListeners() {
           ${esPendiente ? `
           <div class="assign-row">
             <label>Asignar a:</label>
-            <select class="sel-chofer" id="sel-${child.key}">
-              <option value="">— Seleccionar chofer —</option>
-            </select>
+            <div class="csd-wrap">
+              <input type="text" class="csd-input" id="si-${child.key}" placeholder="🔍 Nombre, ID o vehículo…"
+                oninput="csdFiltrar('${child.key}',this.value)" onfocus="csdAbrir('${child.key}')" autocomplete="off"/>
+              <div class="csd-list" id="sd-${child.key}"></div>
+              <input type="hidden" id="sel-${child.key}" value=""/>
+            </div>
             <button class="btn-despachar" onclick="despachar('${child.key}')">ENVIAR 🚀</button>
           </div>` : ''}
           ${esAsignado ? `
           <div class="assign-row" style="margin-top:8px;">
             <label>↻ Reasignar a:</label>
-            <select class="sel-chofer" id="sel-${child.key}">
-              <option value="">— Otro chofer —</option>
-            </select>
+            <div class="csd-wrap">
+              <input type="text" class="csd-input" id="si-${child.key}" placeholder="🔍 Nombre, ID o vehículo…"
+                oninput="csdFiltrar('${child.key}',this.value)" onfocus="csdAbrir('${child.key}')" autocomplete="off"/>
+              <div class="csd-list" id="sd-${child.key}"></div>
+              <input type="hidden" id="sel-${child.key}" value=""/>
+            </div>
             <button class="btn-despachar" style="background:#3B82F6;color:#fff;" onclick="reasignarChofer('${child.key}')">REASIGNAR ↻</button>
           </div>` : ''}
         </div>`;
 
-      // Populate select with current drivers
       const sel = document.getElementById(`sel-${child.key}`);
       if (sel) poblarSelect(sel);
     });
@@ -1788,27 +1793,79 @@ function aplicarFiltroHotel(valor) {
 // ─────────────────────────────────────────────────────────────
 //  POBLAR SELECT DE UN CHOFER
 // ─────────────────────────────────────────────────────────────
+function csdRender(reservaId, q) {
+  const lista = document.getElementById('sd-' + reservaId);
+  if (!lista) return;
+  const filtro = (q || '').trim().toLowerCase();
+  const items = filtro
+    ? Object.entries(choferesDisponibles).filter(([id, ch]) =>
+        ch.nombre.toLowerCase().includes(filtro) ||
+        id.toLowerCase().includes(filtro) ||
+        (ch.vehiculo_tipo || '').toLowerCase().includes(filtro))
+    : Object.entries(choferesDisponibles);
+
+  if (!items.length) {
+    lista.innerHTML = '<div class="csd-item">Sin resultados</div>';
+    lista.classList.add('open');
+    return;
+  }
+  const selVal = document.getElementById('sel-' + reservaId)?.value || '';
+  lista.innerHTML = items.map(([id, ch]) => {
+    const emoji = ch.vehiculo_tipo === 'camioneta' ? '🚙' : ch.vehiculo_tipo === 'carro' ? '🚗' : '❓';
+    const vLabel = ch.vehiculo_tipo === 'camioneta' ? 'Camioneta' : ch.vehiculo_tipo === 'carro' ? 'Carro' : 'Sin vehículo';
+    const activo = id === selVal ? ' sel' : '';
+    return `<div class="csd-item${activo}" onclick="csdSeleccionar('${reservaId}','${id}','${escHtml(ch.nombre)}')">` +
+      `<span>${emoji}</span><span style="flex:1">${escHtml(ch.nombre)}</span>` +
+      `<span style="font-size:.72rem;color:var(--muted);">${vLabel}</span></div>`;
+  }).join('');
+  lista.classList.add('open');
+}
+
+function csdAbrir(reservaId) { csdRender(reservaId, document.getElementById('si-' + reservaId)?.value); }
+function csdFiltrar(reservaId, q) { csdRender(reservaId, q); }
+function csdSeleccionar(reservaId, id, nombre) {
+  const hidden = document.getElementById('sel-' + reservaId);
+  const input  = document.getElementById('si-'  + reservaId);
+  const lista  = document.getElementById('sd-'  + reservaId);
+  if (hidden) hidden.value = id;
+  if (input)  input.value  = nombre + ' (' + id + ')';
+  if (lista)  lista.classList.remove('open');
+}
+
+// Cerrar dropdowns al hacer click fuera
+document.addEventListener('click', e => {
+  if (!e.target.closest('.csd-wrap')) {
+    document.querySelectorAll('.csd-list.open').forEach(l => l.classList.remove('open'));
+  }
+});
+
 function poblarSelect(sel) {
-  const valorActual = sel.value;
-  sel.innerHTML = '<option value="">— Seleccionar chofer —</option>';
-  Object.entries(choferesDisponibles).forEach(([id, ch]) => {
-    const opt = document.createElement('option');
-    opt.value = id;
-    const vehiculoEmoji = ch.vehiculo_tipo === 'camioneta' ? '🚙' : ch.vehiculo_tipo === 'carro' ? '🚗' : '❓';
-    const vehiculoLabel = ch.vehiculo_tipo === 'camioneta' ? 'Camioneta' : ch.vehiculo_tipo === 'carro' ? 'Carro' : 'Sin vehículo';
-    opt.textContent = `${vehiculoEmoji} ${ch.nombre} · ${vehiculoLabel} (${ch.estado})`;
-    if (id === valorActual) opt.selected = true;
-    sel.appendChild(opt);
-  });
-  // Si no hay choferes en Firebase, añadir IDs por defecto
-  if (Object.keys(choferesDisponibles).length === 0) {
-    ['001','002','003'].forEach(id => {
+  // Compatibilidad: si el elemento es un <select> real, usarlo normalmente
+  if (sel.tagName === 'SELECT') {
+    const valorActual = sel.value;
+    sel.innerHTML = '<option value="">— Seleccionar chofer —</option>';
+    Object.entries(choferesDisponibles).forEach(([id, ch]) => {
       const opt = document.createElement('option');
       opt.value = id;
-      opt.textContent = `Chofer ${id}`;
+      const vehiculoEmoji = ch.vehiculo_tipo === 'camioneta' ? '🚙' : ch.vehiculo_tipo === 'carro' ? '🚗' : '❓';
+      const vehiculoLabel = ch.vehiculo_tipo === 'camioneta' ? 'Camioneta' : ch.vehiculo_tipo === 'carro' ? 'Carro' : 'Sin vehículo';
+      opt.textContent = `${vehiculoEmoji} ${ch.nombre} · ${vehiculoLabel} (${ch.estado})`;
+      if (id === valorActual) opt.selected = true;
       sel.appendChild(opt);
     });
+    if (Object.keys(choferesDisponibles).length === 0) {
+      ['001','002','003'].forEach(id => {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = `Chofer ${id}`;
+        sel.appendChild(opt);
+      });
+    }
+    return;
   }
+  // Si es hidden input (nuevo sistema csd), re-renderizar su lista
+  const reservaId = sel.id.replace(/^sel-/, '');
+  csdRender(reservaId, '');
 }
 
 async function enviarPushNuevoViajeChofer({ choferID, choferData, reservaID, datosViaje }) {
