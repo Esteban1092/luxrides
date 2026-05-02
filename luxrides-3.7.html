@@ -2057,25 +2057,19 @@ async function finalizarViajeCliente(){
     const r = snap.val() || {};
     const choferYaFinalizo = r.chofer_finalizo === true;
 
-    const update = {
+    // Solo poner bandera — el CF se encarga de acreditar saldo y marcar completado
+    await db.ref('reservas/' + reservaActivaId).update({
       cliente_finalizo: true,
       cliente_finalizo_en: new Date().toISOString()
-    };
-
-    // Si el chofer ya confirmó → marcar completado directamente
-    if (choferYaFinalizo) {
-      update.estado = 'completado';
-    }
-
-    await db.ref('reservas/' + reservaActivaId).update(update);
+    });
 
     const btnFin = document.getElementById('btn-finalizar-viaje');
     if (btnFin) btnFin.style.display = 'none';
 
-    if (!choferYaFinalizo) {
-      alert('✅ Gracias por confirmar.\n\nTu chofer aún no ha confirmado. El viaje se cerrará cuando él también finalice.');
+    if (choferYaFinalizo) {
+      alert('✅ ¡Listo! El viaje ha sido confirmado. ¡Gracias por usar LuxRides!');
     } else {
-      alert('✅ Viaje finalizado. ¡Gracias por usar LuxRides!');
+      alert('✅ Gracias por confirmar.\n\nTu chofer aún no ha finalizado. El viaje se cerrará cuando él también confirme.');
     }
   } catch(e) {
     alert('No se pudo finalizar. Intenta de nuevo.');

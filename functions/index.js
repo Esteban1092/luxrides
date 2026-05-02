@@ -579,11 +579,10 @@ exports.completarViajeDual = onValueUpdated(
     const reservaId = event.params.reservaId;
     const choferFinalizo  = after.chofer_finalizo  === true;
     const clienteFinalizo = after.cliente_finalizo === true;
-    const estadoActual    = String(after.estado || '').toLowerCase();
 
-    // Solo actuar si ambos confirmaron y aún no está completado
+    // Solo actuar si ambos confirmaron y el saldo aún no fue acreditado
     if (!choferFinalizo || !clienteFinalizo) return;
-    if (estadoActual === 'completado') return;
+    if (after.saldo_acreditado === true) return;
 
     const reservaRef = db.ref('reservas/' + reservaId);
     const choferId   = after.chofer_id || after.chofer_asignado || null;
@@ -594,9 +593,10 @@ exports.completarViajeDual = onValueUpdated(
       ? Number(after.pago_chofer)
       : Math.round(total * 0.80);
 
-    // Marcar reserva como completada
+    // Marcar reserva como completada y saldo acreditado (evita doble ejecución)
     await reservaRef.update({
       estado: 'completado',
+      saldo_acreditado: true,
       completado_en: new Date().toISOString()
     });
 
