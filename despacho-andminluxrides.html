@@ -997,23 +997,10 @@ function abrirModalVehiculo(choferId) {
     sel.appendChild(opt);
   });
 
-  // Si viene con choferId, precargar datos existentes
+  // Si viene con choferId, precargar tipo existente
   if (choferId) {
     const chofer = choferesLista.find(c => c.id === choferId);
-    if (chofer) {
-      document.getElementById('mv-marca').value  = chofer.vehiculo_marca  || '';
-      document.getElementById('mv-modelo').value = chofer.vehiculo_modelo || '';
-      document.getElementById('mv-color').value  = chofer.vehiculo_color  || '';
-      document.getElementById('mv-placa').value  = chofer.placa           || '';
-      document.getElementById('mv-anio').value   = chofer.vehiculo_anio   || '';
-      if (chofer.vehiculo_tipo) seleccionarTipoVehiculo(chofer.vehiculo_tipo);
-    }
-  } else {
-    document.getElementById('mv-marca').value  = '';
-    document.getElementById('mv-modelo').value = '';
-    document.getElementById('mv-color').value  = '';
-    document.getElementById('mv-placa').value  = '';
-    document.getElementById('mv-anio').value   = '';
+    if (chofer && chofer.vehiculo_tipo) seleccionarTipoVehiculo(chofer.vehiculo_tipo);
   }
 
   document.getElementById('modal-vehiculo').classList.add('open');
