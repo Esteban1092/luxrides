@@ -406,16 +406,6 @@
     <select id="mv-chofer-select">
       <option value="">— Seleccionar chofer —</option>
     </select>
-    <label>Marca</label>
-    <input id="mv-marca" type="text" placeholder="Ej: Toyota, Ford, Nissan…"/>
-    <label>Modelo</label>
-    <input id="mv-modelo" type="text" placeholder="Ej: Camry, Explorer…"/>
-    <label>Color</label>
-    <input id="mv-color" type="text" placeholder="Ej: Negro, Blanco…"/>
-    <label>Placa</label>
-    <input id="mv-placa" type="text" placeholder="Ej: ABC-1234" style="text-transform:uppercase;"/>
-    <label>Año (opcional)</label>
-    <input id="mv-anio" type="number" min="2000" max="2030" placeholder="Ej: 2024"/>
     <div class="modal-vehiculo-actions">
       <button class="btn-guardar-vehiculo" onclick="guardarVehiculo()">💾 Guardar</button>
       <button class="btn-cancelar-vehiculo" onclick="cerrarModalVehiculo()">Cancelar</button>
@@ -1041,31 +1031,16 @@ function seleccionarTipoVehiculo(tipo) {
 
 async function guardarVehiculo() {
   const choferId = document.getElementById('mv-chofer-select').value;
-  const marca    = (document.getElementById('mv-marca').value  || '').trim();
-  const modelo   = (document.getElementById('mv-modelo').value || '').trim();
-  const color    = (document.getElementById('mv-color').value  || '').trim();
-  const placa    = (document.getElementById('mv-placa').value  || '').trim().toUpperCase();
-  const anio     = document.getElementById('mv-anio').value || '';
-
   if (!choferId) { showToast('⚠️ Selecciona un chofer.', true); return; }
-  if (!marca)    { showToast('⚠️ Escribe la marca del vehículo.', true); return; }
-  if (!modelo)   { showToast('⚠️ Escribe el modelo del vehículo.', true); return; }
-  if (!color)    { showToast('⚠️ Escribe el color del vehículo.', true); return; }
-  if (!placa)    { showToast('⚠️ Escribe la placa del vehículo.', true); return; }
 
   try {
     await db.ref('choferes/' + choferId).update({
-      vehiculo_tipo:   tipoVehiculoSeleccionado,
-      vehiculo_marca:  marca,
-      vehiculo_modelo: modelo,
-      vehiculo_color:  color,
-      placa,
-      ...(anio ? { vehiculo_anio: anio } : {}),
+      vehiculo_tipo: tipoVehiculoSeleccionado,
       vehiculo_actualizado_en: new Date().toISOString()
     });
     cerrarModalVehiculo();
     const nombreChofer = (choferesLista.find(c => c.id === choferId)?.nombre) || choferId;
-    showToast(`✅ Vehículo asignado a ${nombreChofer}: ${marca} ${modelo} · ${placa}`);
+    showToast(`✅ ${nombreChofer}: ${tipoVehiculoSeleccionado === 'camioneta' ? '🚙 Camioneta' : '🚗 Carro'} asignado.`);
   } catch (err) {
     console.error(err);
     showToast('❌ No se pudo guardar: ' + err.message, true);
@@ -1651,7 +1626,7 @@ function renderizarChoferes() {
             <span class="dot ${dotClass}"></span>${estadoLabel}
           </div>
           <div class="chofer-hotel">🏨 Hotel: <b>${escHtml(ch.hotel || 'Sin asignar')}</b></div>
-          ${ch.vehiculo_marca ? `<div class="chofer-vehiculo">🚘 ${escHtml(ch.vehiculo_tipo === 'camioneta' ? 'Camioneta' : 'Carro')}: ${escHtml(ch.vehiculo_marca)} ${escHtml(ch.vehiculo_modelo || '')} · ${escHtml(ch.vehiculo_color || '')} · ${escHtml(ch.placa || '')}</div>` : '<div class="chofer-vehiculo" style="color:#666;">Sin vehículo asignado</div>'}
+          ${ch.vehiculo_tipo ? `<div class="chofer-vehiculo">${ch.vehiculo_tipo === 'camioneta' ? '🚙 Camioneta' : '🚗 Carro'}</div>` : '<div class="chofer-vehiculo" style="color:#666;">Sin vehículo asignado</div>'}
           ${ch.viajeActual ? `<div class="viaje-actual">🗺️ ${escHtml(ch.viajeActual)}</div>` : ''}
           <div class="chofer-actions">
             <button class="btn-small" onclick="editarNombreChofer('${ch.id}')">✏️ Editar nombre</button>
