@@ -132,9 +132,23 @@ select{padding-left:12px;padding-right:12px;}
 .price-currency{font-size:0.9rem;color:var(--muted);}
 #btn-wa{width:100%;padding:14px;border:none;background:#25D366;color:#fff;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s;}
 #btn-wa:hover{background:#1ebe5d;}
-#btn-clip{width:100%;padding:14px;border:none;background:#111827;color:#fff;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s;margin-top:8px;}
-#btn-clip:hover{background:#0b1220;}
-.clip-note{margin-top:8px;font-size:0.8rem;color:var(--muted);text-align:center;line-height:1.35;}
+#btn-stripe{width:100%;padding:14px;border:none;background:#635bff;color:#fff;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s;margin-top:8px;border-radius:6px;}
+#btn-stripe:hover{background:#4b44d4;}
+/* ── Modal Stripe ── */
+#stripe-modal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65);align-items:center;justify-content:center;}
+.stripe-modal-card{background:#fff;border-radius:18px;padding:28px 22px;width:92%;max-width:400px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
+.stripe-modal-close{position:absolute;top:12px;right:14px;background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888;line-height:1;}
+.stripe-monto-box{background:#f5f5f7;border-radius:10px;padding:14px;text-align:center;margin:16px 0;}
+.stripe-monto-lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.15em;color:#888;margin-bottom:4px;}
+.stripe-monto-val{font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:700;color:#1a1a1a;}
+.stripe-monto-cur{font-size:.85rem;color:#888;} 
+#stripe-card-element{padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;background:#fff;transition:border-color .2s;}
+#stripe-card-element.StripeElement--focus{border-color:#635bff;}
+#stripe-card-error{color:#dc2626;font-size:.82rem;margin-top:8px;min-height:18px;}
+#btn-pagar-stripe{width:100%;margin-top:18px;padding:14px;background:#635bff;border:none;color:#fff;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:700;border-radius:8px;cursor:pointer;transition:background .2s;}
+#btn-pagar-stripe:hover:not(:disabled){background:#4b44d4;}
+#btn-pagar-stripe:disabled{opacity:.6;cursor:not-allowed;}
+.stripe-ssl-note{font-size:.7rem;color:#aaa;text-align:center;margin-top:12px;}
 .date-time-row{display:flex;gap:12px;margin-bottom:12px;}
 .date-time-row .date-wrap{flex:1;}
 .date-time-row .time-wrap{flex:1;}
@@ -358,8 +372,7 @@ select{padding-left:12px;padding-right:12px;}
         <span class="price-currency">MXN</span>
       </div>
       <button id="btn-wa" onclick="enviarWhatsApp()">💬 Confirmar por WhatsApp</button>
-      <button id="btn-clip" onclick="pagarConClip()">💳 Pagar Reserva en Clip</button>
-      <div class="clip-note">Entra a <a href="https://clip.mx/@Luxridesreservas.com" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;">clip.mx/@Luxridesreservas.com</a>, ingresa el monto, el concepto y realiza tu pago de forma segura por medio de Clip.</div>
+      <button id="btn-stripe" onclick="abrirPagoStripe()">💳 Pagar con Stripe</button>
       <div class="track-box" id="track-box">
         <span id="track-text">Seguimiento en vivo: pendiente de asignacion.</span>
         <div class="driver-chip" id="driver-chip">
@@ -371,6 +384,7 @@ select{padding-left:12px;padding-right:12px;}
           <div><b>Tu carro llega en:</b> <span id="track-eta-min">-</span></div>
           <div><b>Hora estimada:</b> <span id="track-eta-hora">-</span></div>
         </div>
+        <button id="btn-finalizar-viaje" style="display:none;width:100%;margin-top:12px;padding:13px;background:#22C55E;border:none;color:#fff;font-family:'Outfit',sans-serif;font-size:.95rem;font-weight:700;border-radius:10px;cursor:pointer;" onclick="finalizarViajeCliente()">✅ Finalizar Viaje</button>
         <div class="track-actions">
           <button type="button" class="btn-track-mini" id="btn-track-center" onclick="toggleAutoCenterChofer()">Auto-centrar: ON</button>
         </div>
@@ -393,6 +407,29 @@ select{padding-left:12px;padding-right:12px;}
     </div>
 
     <div class="error-msg" id="error-msg"></div>
+  </div>
+</div>
+
+<!-- Modal pago Stripe -->
+<div id="stripe-modal">
+  <div class="stripe-modal-card">
+    <button class="stripe-modal-close" onclick="cerrarPagoStripe()" aria-label="Cerrar">✕</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="32" height="32" rx="8" fill="#635bff"/><path d="M13.5 20.5c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5c.8 0 1.5.4 2 1l1.5-1.5C16.1 14 14.9 13.5 13.5 13.5 11 13.5 9 15.5 9 18s2 4.5 4.5 4.5c1.4 0 2.6-.5 3.5-1.5L15.5 19.5c-.5.6-1.2 1-2 1zm5-7l-1 2h-2l1-2h2zm1.5 0h2l-3.5 7h-2l3.5-7z" fill="white"/></svg>
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:#1a1a1a;">LuxRides</div>
+        <div style="font-size:.72rem;color:#888;">Pago seguro con Stripe</div>
+      </div>
+    </div>
+    <div class="stripe-monto-box">
+      <div class="stripe-monto-lbl">Total a pagar</div>
+      <div><span class="stripe-monto-val" id="stripe-monto-display">$0</span> <span class="stripe-monto-cur">MXN</span></div>
+    </div>
+    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Datos de tu tarjeta</label>
+    <div id="stripe-card-element"></div>
+    <div id="stripe-card-error"></div>
+    <button id="btn-pagar-stripe" onclick="procesarPagoStripe()">💳 Pagar ahora</button>
+    <p class="stripe-ssl-note">🔒 Encriptado con SSL · Procesado por Stripe · Nunca almacenamos tu tarjeta</p>
   </div>
 </div>
 
@@ -486,6 +523,10 @@ let choferRutaRefreshTimer = null;
 const GOOGLE_MAPS_API_KEY = 'AIzaSyCUg6f_AeINCNn8VWU1GDjpjq5_e8A8GvQ';
 window.GOOGLE_MAPS_API_KEY = GOOGLE_MAPS_API_KEY;
 const WHATSAPP_CENTRAL = '+525527729551';
+const STRIPE_PK = 'pk_live_51TSJFbRsMQje2ZkMG6tpwzSwf8HsmPkQmP45tH2wXb6CVEsa3sSJMPrFyDyPu4vVQH4OBOVDeMYYqitKLy3DJhfU00Fqd0xLIC';
+let stripeInstance = null;
+let stripeCardElement = null;
+let stripeMontoActual = 0;
 const CLIP_PAYMENT_URL = 'https://clip.mx/@Luxridesreservas.com';
 const FCM_VAPID_KEY = 'BHFqapvp0PyXQZTEQEKwIjDGt_KxIb2-gQ3Iu3uDNgz9fdrCH6T1ADyqvIbOSnwuoQEXs2KkB9_ZvUldqIGWpdQ';
 let clientMessaging = null;
@@ -1841,6 +1882,119 @@ function abrirWhatsAppSeguro(numeroCentral, encodedText, waWindow){
   window.open(urlWeb, '_blank', 'noopener,noreferrer');
 }
 
+// ── Stripe Payment ──────────────────────────────────────────────────────
+
+async function abrirPagoStripe(){
+  if (!resultado || !resultado.totalPrecio) {
+    alert('Primero calcula el precio del servicio.');
+    return;
+  }
+  stripeMontoActual = resultado.totalPrecio;
+  document.getElementById('stripe-monto-display').textContent = '$' + stripeMontoActual.toLocaleString('es-MX');
+
+  // Cargar Stripe.js si no está disponible
+  if (!window.Stripe) {
+    await loadExternalScript('https://js.stripe.com/v3/');
+  }
+  if (!stripeInstance) {
+    stripeInstance = Stripe(STRIPE_PK);
+  }
+
+  // Montar card element solo una vez
+  if (!stripeCardElement) {
+    const elements = stripeInstance.elements();
+    stripeCardElement = elements.create('card', {
+      hidePostalCode: true,
+      style: {
+        base: { fontSize: '16px', color: '#1a1a1a', fontFamily: "'Outfit', sans-serif", '::placeholder': { color: '#aab7c4' } },
+        invalid: { color: '#dc2626' }
+      }
+    });
+    stripeCardElement.mount('#stripe-card-element');
+    stripeCardElement.on('change', (e) => {
+      document.getElementById('stripe-card-error').textContent = e.error ? e.error.message : '';
+    });
+  }
+
+  const modal = document.getElementById('stripe-modal');
+  modal.style.display = 'flex';
+}
+
+function cerrarPagoStripe(){
+  document.getElementById('stripe-modal').style.display = 'none';
+}
+
+async function procesarPagoStripe(){
+  if (!stripeInstance || !stripeCardElement) return;
+  const btn = document.getElementById('btn-pagar-stripe');
+  const errEl = document.getElementById('stripe-card-error');
+  btn.disabled = true;
+  btn.textContent = '⏳ Procesando…';
+  errEl.textContent = '';
+
+  try {
+    // 1. Guardar reserva en Firebase
+    const { ok, reservaId } = await guardarReserva();
+    if (!ok) throw new Error('No se pudo registrar la reserva en el sistema.');
+
+    // 2. Crear PaymentIntent en el backend
+    const resp = await fetch(
+      'https://us-central1-luxridesreservas-d5102.cloudfunctions.net/crearPagoReserva',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ monto: stripeMontoActual, reservaId, descripcion: 'LuxRides - Traslado VIP' }) }
+    );
+    const data = await resp.json();
+    if (!data.clientSecret) throw new Error(data.error || 'No se pudo iniciar el pago.');
+
+    // 3. Confirmar con Stripe.js (datos de tarjeta nunca van a nuestro servidor)
+    const nombre = (document.getElementById('inp-nombre').value || '').trim() || 'Cliente';
+    const { error, paymentIntent } = await stripeInstance.confirmCardPayment(data.clientSecret, {
+      payment_method: { card: stripeCardElement, billing_details: { name: nombre } }
+    });
+    if (error) throw new Error(error.message);
+
+    if (paymentIntent.status === 'succeeded') {
+      // 4. Marcar reserva como pagada en Firebase
+      if (reservaId && db) {
+        await db.ref('reservas/' + reservaId).update({
+          pago_stripe_id: paymentIntent.id,
+          pago_status: 'pagado',
+          pago_monto: stripeMontoActual,
+          pagado_en: new Date().toISOString()
+        });
+      }
+      cerrarPagoStripe();
+      // 5. Iniciar seguimiento en vivo
+      if (reservaId) {
+        iniciarSeguimientoCliente(reservaId);
+        const trackBox = document.getElementById('track-box');
+        if (trackBox) trackBox.style.display = 'block';
+      }
+      alert('✅ ¡Pago exitoso! Tu reserva ha sido confirmada.\n\nFolio: ' + (reservaId || '—'));
+    }
+  } catch(err) {
+    errEl.textContent = err.message || 'Error al procesar el pago. Intenta de nuevo.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💳 Pagar ahora';
+  }
+}
+
+// ── Finalizar Viaje (desde app cliente) ─────────────────────────────────
+
+async function finalizarViajeCliente(){
+  if (!reservaActivaId || !db) return;
+  if (!confirm('¿Confirmas que el viaje ha concluido?')) return;
+  try {
+    await db.ref('reservas/' + reservaActivaId).update({
+      estado: 'completado',
+      completado_en: new Date().toISOString()
+    });
+  } catch(e) {
+    alert('No se pudo finalizar. Intenta de nuevo.');
+  }
+}
+
 function pagarConClip(){
   window.open(CLIP_PAYMENT_URL, '_blank', 'noopener,noreferrer');
 }
@@ -2415,11 +2569,15 @@ function iniciarSeguimientoCliente(reservaId){
     }
     if (estado === 'pendiente') {
       setTrackStatus('Seguimiento en vivo: reserva pendiente de despacho...');
+      const btnFin = document.getElementById('btn-finalizar-viaje');
+      if (btnFin) btnFin.style.display = 'none';
       return;
     }
     if (estado === 'asignado') {
       const nombreChofer = r.chofer_nombre || 'tu chofer';
       setTrackStatus(`✅ Chofer asignado: ${nombreChofer}. En camino a recogerte...`);
+      const btnFin = document.getElementById('btn-finalizar-viaje');
+      if (btnFin) btnFin.style.display = 'none';
       // Mostrar datos del conductor inmediatamente
       renderDriverInfo(r);
       completarDriverInfoDesdeChofer(r);
@@ -2430,6 +2588,10 @@ function iniciarSeguimientoCliente(reservaId){
       iniciarSeguimientoChofer(choferId);
       renderRutaChofer();
     }
+
+    // Mostrar botón Finalizar Viaje solo cuando el viaje está en curso
+    const btnFin = document.getElementById('btn-finalizar-viaje');
+    if (btnFin) btnFin.style.display = (estado === 'en curso' || estado === 'en_curso') ? 'block' : 'none';
 
     if (estado === 'completado' || estado === 'cancelado') {
       // Limpiar TODA la presencia del chofer en el mapa

@@ -533,3 +533,37 @@ exports.procesarSolicitudRetiro = onValueCreated(
     }
   }
 );
+
+// ── Crear PaymentIntent para cobro de reserva al cliente ──────────────
+exports.crearPagoReserva = onRequest(
+  { secrets: [stripeSecretKey] },
+  async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
+    if (req.method !== 'POST') { res.status(405).json({ error: 'Método no permitido' }); return; }
+
+    const { monto, reservaId, descripcion } = req.body || {};
+
+    if (!monto || typeof monto !== 'number' || monto <= 0 || monto > 9999999) {
+      res.status(400).json({ error: 'Monto inválido' });
+      return;
+    }
+
+    try {
+      const stripe = require('stripe')(stripeSecretKey.value());
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(monto * 100),
+        currency: 'mxn',
+        description: descripcion || 'LuxRides - Traslado VIP',
+        metadata: { reservaId: String(reservaId || '') },
+        automatic_payment_methods: { enabled: true }
+      });
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (err) {
+      logger.error('Error creando PaymentIntent', { error: err?.message });
+      res.status(500).json({ error: err.message || 'Error al crear el pago' });
+    }
+  }
+);
