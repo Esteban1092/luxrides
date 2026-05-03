@@ -435,10 +435,78 @@ select{padding-left:12px;padding-right:12px;}
     <input id="stripe-nombre-titular" type="text" placeholder="Como aparece en la tarjeta" autocomplete="cc-name" style="width:100%;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;margin-bottom:12px;box-sizing:border-box;"/>
     <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Correo electrónico</label>
     <input id="stripe-email" type="email" placeholder="tucorreo@email.com" autocomplete="email" style="width:100%;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;margin-bottom:12px;box-sizing:border-box;"/>
-    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Teléfono (WhatsApp)</label>
+    <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Teléfono</label>
     <div style="display:flex;gap:6px;margin-bottom:12px;">
-      <span style="padding:13px 10px;background:#f5f5f7;border:1.5px solid #ddd;border-radius:8px;font-size:.95rem;color:#888;white-space:nowrap;">+52</span>
-      <input id="stripe-telefono" type="tel" placeholder="10 dígitos" inputmode="numeric" maxlength="10" autocomplete="tel-national" style="flex:1;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;box-sizing:border-box;"/>
+      <select id="stripe-lada" autocomplete="tel-country-code" style="padding:13px 8px;background:#f5f5f7;border:1.5px solid #ddd;border-radius:8px;font-size:.88rem;color:#333;font-family:'Outfit',sans-serif;min-width:82px;max-width:110px;outline:none;cursor:pointer;">
+        <option value="+52">🇲🇽 +52</option>
+        <option value="+1">🇺🇸 +1</option>
+        <option value="+1-CA">🇨🇦 +1</option>
+        <option value="+54">🇦🇷 +54</option>
+        <option value="+55">🇧🇷 +55</option>
+        <option value="+56">🇨🇱 +56</option>
+        <option value="+57">🇨🇴 +57</option>
+        <option value="+51">🇵🇪 +51</option>
+        <option value="+58">🇻🇪 +58</option>
+        <option value="+593">🇪🇨 +593</option>
+        <option value="+591">🇧🇴 +591</option>
+        <option value="+595">🇵🇾 +595</option>
+        <option value="+598">🇺🇾 +598</option>
+        <option value="+502">🇬🇹 +502</option>
+        <option value="+503">🇸🇻 +503</option>
+        <option value="+504">🇭🇳 +504</option>
+        <option value="+505">🇳🇮 +505</option>
+        <option value="+506">🇨🇷 +506</option>
+        <option value="+507">🇵🇦 +507</option>
+        <option value="+1-DO">🇩🇴 +1</option>
+        <option value="+53">🇨🇺 +53</option>
+        <option value="+34">🇪🇸 +34</option>
+        <option value="+44">🇬🇧 +44</option>
+        <option value="+33">🇫🇷 +33</option>
+        <option value="+49">🇩🇪 +49</option>
+        <option value="+39">🇮🇹 +39</option>
+        <option value="+351">🇵🇹 +351</option>
+        <option value="+31">🇳🇱 +31</option>
+        <option value="+32">🇧🇪 +32</option>
+        <option value="+41">🇨🇭 +41</option>
+        <option value="+43">🇦🇹 +43</option>
+        <option value="+46">🇸🇪 +46</option>
+        <option value="+47">🇳🇴 +47</option>
+        <option value="+45">🇩🇰 +45</option>
+        <option value="+358">🇫🇮 +358</option>
+        <option value="+48">🇵🇱 +48</option>
+        <option value="+7">🇷🇺 +7</option>
+        <option value="+380">🇺🇦 +380</option>
+        <option value="+30">🇬🇷 +30</option>
+        <option value="+90">🇹🇷 +90</option>
+        <option value="+972">🇮🇱 +972</option>
+        <option value="+971">🇦🇪 +971</option>
+        <option value="+966">🇸🇦 +966</option>
+        <option value="+974">🇶🇦 +974</option>
+        <option value="+965">🇰🇼 +965</option>
+        <option value="+968">🇴🇲 +968</option>
+        <option value="+973">🇧🇭 +973</option>
+        <option value="+20">🇪🇬 +20</option>
+        <option value="+212">🇲🇦 +212</option>
+        <option value="+27">🇿🇦 +27</option>
+        <option value="+234">🇳🇬 +234</option>
+        <option value="+254">🇰🇪 +254</option>
+        <option value="+91">🇮🇳 +91</option>
+        <option value="+92">🇵🇰 +92</option>
+        <option value="+86">🇨🇳 +86</option>
+        <option value="+81">🇯🇵 +81</option>
+        <option value="+82">🇰🇷 +82</option>
+        <option value="+886">🇹🇼 +886</option>
+        <option value="+852">🇭🇰 +852</option>
+        <option value="+65">🇸🇬 +65</option>
+        <option value="+60">🇲🇾 +60</option>
+        <option value="+66">🇹🇭 +66</option>
+        <option value="+84">🇻🇳 +84</option>
+        <option value="+62">🇮🇩 +62</option>
+        <option value="+63">🇵🇭 +63</option>
+        <option value="+61">🇦🇺 +61</option>
+        <option value="+64">🇳🇿 +64</option>
+      </select>
+      <input id="stripe-telefono" type="tel" placeholder="Número sin lada" inputmode="numeric" maxlength="15" autocomplete="tel-national" style="flex:1;padding:13px 12px;border:1.5px solid #ddd;border-radius:8px;font-family:'Outfit',sans-serif;font-size:.95rem;color:#1a1a1a;outline:none;box-sizing:border-box;"/>
     </div>
     <label style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:#888;display:block;margin-bottom:8px;">Número de tarjeta</label>
     <div id="stripe-card-number" class="stripe-field" style="margin-bottom:12px;"></div>
@@ -1992,6 +2060,8 @@ async function procesarPagoStripe(){
     // 3. Confirmar con Stripe.js (datos de tarjeta nunca van a nuestro servidor)
     const nombreTitular = (document.getElementById('stripe-nombre-titular').value || '').trim();
     const emailCliente  = (document.getElementById('stripe-email').value || '').trim();
+    const ladaRaw = (document.getElementById('stripe-lada').value || '+52');
+    const lada = ladaRaw.replace(/-[A-Z]+$/, ''); // quitar sufijos como -CA, -DO
     const telefonoCliente = (document.getElementById('stripe-telefono').value || '').replace(/\D/g,'').trim();
 
     if (!nombreTitular) {
@@ -2002,8 +2072,8 @@ async function procesarPagoStripe(){
       errEl.textContent = 'Ingresa un correo electrónico válido.';
       btn.disabled = false; btn.textContent = '💳 Pagar ahora'; return;
     }
-    if (!telefonoCliente || telefonoCliente.length < 10) {
-      errEl.textContent = 'Ingresa tu número de teléfono de 10 dígitos.';
+    if (!telefonoCliente || telefonoCliente.length < 6) {
+      errEl.textContent = 'Ingresa tu número de teléfono.';
       btn.disabled = false; btn.textContent = '💳 Pagar ahora'; return;
     }
 
@@ -2013,7 +2083,7 @@ async function procesarPagoStripe(){
         billing_details: {
           name: nombreTitular,
           email: emailCliente,
-          phone: '+52' + telefonoCliente
+          phone: lada + telefonoCliente
         }
       },
       receipt_email: emailCliente
