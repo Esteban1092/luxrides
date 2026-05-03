@@ -2883,18 +2883,26 @@ function reanudarTrackingSiNecesario(){
   const guardada = reservaActivaId || localStorage.getItem(RESERVA_ACTIVA_KEY);
   if (!guardada || !db) return;
 
-  // Si el listener ya no está activo, reiniciar seguimiento completo
-  if (!reservaStatusCallback) {
-    iniciarSeguimientoCliente(guardada);
-    return;
-  }
-
-  // Forzar re-lectura para obtener el estado más reciente
+  // Verificar estado en Firebase antes de reanudar
   db.ref('reservas/' + guardada).once('value').then(snap => {
-    if (reservaStatusCallback) reservaStatusCallback(snap);
-    // Re-renderizar ruta tras actualizar estado (chofer puede estar offline)
-    if (choferLivePos && reservaSeguimientoActual) {
-      renderRutaChofer();
+    const r = snap.val();
+    if (!r) {
+      localStorage.removeItem(RESERVA_ACTIVA_KEY);
+      return;
+    }
+    const estado = (r.estado || '').toLowerCase();
+    if (estado === 'completado' || estado === 'cancelado' || estado === 'finalizado') {
+      localStorage.removeItem(RESERVA_ACTIVA_KEY);
+      return;
+    }
+    // Estado activo — reanudar o refrescar
+    if (!reservaStatusCallback) {
+      iniciarSeguimientoCliente(guardada);
+    } else {
+      if (reservaStatusCallback) reservaStatusCallback(snap);
+      if (choferLivePos && reservaSeguimientoActual) {
+        renderRutaChofer();
+      }
     }
   }).catch(() => {});
 }
@@ -2956,12 +2964,31 @@ setInterval(guardarEstadoFormulario, 10000);
 // Restaurar estado del formulario si existe en sessionStorage
 restaurarEstadoFormulario();
 
-// Reanudar seguimiento de reserva activa
+// Reanudar seguimiento de reserva activa solo si sigue activa en Firebase
 (async function reanudarSeguimientoCliente(){
   await firebaseInitPromise;
   const guardada = localStorage.getItem(RESERVA_ACTIVA_KEY);
-  if (guardada) {
+  if (!guardada || !db) return;
+
+  try {
+    const snap = await db.ref('reservas/' + guardada).once('value');
+    const r = snap.val();
+    if (!r) {
+      // La reserva ya no existe en Firebase → limpiar
+      localStorage.removeItem(RESERVA_ACTIVA_KEY);
+      return;
+    }
+    const estado = (r.estado || '').toLowerCase();
+    const ESTADOS_TERMINADOS = ['completado', 'cancelado', 'finalizado'];
+    if (ESTADOS_TERMINADOS.includes(estado)) {
+      // La reserva ya terminó → limpiar y no mostrar nada
+      localStorage.removeItem(RESERVA_ACTIVA_KEY);
+      return;
+    }
+    // Estado activo → reanudar seguimiento
     iniciarSeguimientoCliente(guardada);
+  } catch(e) {
+    console.warn('No se pudo verificar reserva guardada:', e);
   }
 })();
 
