@@ -1,0 +1,21 @@
+{
+  "appId": "com.luxrides.choferes",
+  "appName": "LuxRides Chofer",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "android": {
+    "backgroundColor": "#050505"
+  },
+  "plugins": {
+    "BackgroundGeolocation": {
+      "locationAuthorizationRequest": "Always",
+      "desiredAccuracy": "Navigation",
+      "distanceFilter": 10,
+      "stopTimeout": 5,
+      "debug": false,
+      "logLevel": "OFF",
+      "stopOnTerminate": false,
+      "startOnBoot": true
+    }
+  }
+}
